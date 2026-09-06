@@ -1,842 +1,863 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>多裝置直連 BLE 遊戲</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multi-Toy BLE Game</title>
 <style>
   :root{
-    color-scheme: dark;
-    --bg:#14141c;
-    --panel:#1e1e2a;
-    --panel2:#252534;
-    --border:#33334a;
-    --text:#e8e8f0;
-    --muted:#9494ac;
-    --accent:#ff4d8d;
-    --accent2:#7c5cff;
-    --ok:#3ddc97;
-    --warn:#ffb648;
-    --danger:#ff5c5c;
+    --bg:#0b0b12; --panel:#15151f; --panel2:#1d1d2a; --border:#2c2c3d;
+    --text:#ececf5; --muted:#8b8ba3;
+    --accent:#ff4d8d; --accent2:#6b5bff; --ok:#3ddc97; --warn:#ffb03a; --danger:#ff5470;
   }
-  *{box-sizing:border-box;}
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
   body{
-    margin:0;
-    background:linear-gradient(160deg,#14141c,#1a1626);
-    color:var(--text);
-    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
-    min-height:100vh;
-    display:flex;
-    justify-content:center;
-    padding:28px 14px 60px;
+    background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+    font-size:14px; line-height:1.5;
+    padding:14px 12px 40px;
   }
-  .container{ width:100%; max-width:640px; }
-  h1{ font-size:19px; margin:0 0 4px; letter-spacing:.4px; }
-  .subtitle{ color:var(--muted); font-size:12.5px; margin:0 0 20px; line-height:1.6; }
+  .wrap{ max-width:760px; margin:0 auto; }
+  h1{ font-size:19px; margin:0 0 2px; }
+  .sub{ color:var(--muted); font-size:12px; margin:0 0 14px; }
   section{
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:14px;
-    padding:16px;
-    margin-bottom:14px;
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:13px; margin-bottom:12px;
   }
-  section h2{
-    font-size:13.5px; margin:0 0 10px; color:var(--muted); font-weight:600; letter-spacing:.4px;
-    display:flex; align-items:center; justify-content:space-between;
-  }
-  .badge{
-    font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border);
-    color:var(--muted); font-weight:500;
-  }
-  .badge.on{ color:var(--ok); border-color:var(--ok); }
-  .badge.off{ color:var(--muted); }
-  .badge.err{ color:var(--danger); border-color:var(--danger); }
-  label{ display:block; font-size:11.5px; color:var(--muted); margin:0 0 4px; }
-  .row{ display:flex; gap:8px; }
-  .row > div{ flex:1; }
+  h2{ font-size:14px; margin:0 0 10px; letter-spacing:.3px; }
+  label{ display:block; font-size:11px; color:var(--muted); margin-bottom:3px; }
   input[type=text], input[type=number], select{
-    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
-    padding:8px 9px; border-radius:9px; font-size:13.5px; outline:none; font-family:inherit;
+    width:100%; background:#0f0f17; color:var(--text);
+    border:1px solid var(--border); border-radius:9px;
+    padding:8px 9px; font-size:13px; font-family:inherit; outline:none;
   }
-  input[type=text]:focus, input[type=number]:focus, select:focus{ border-color:var(--accent2); }
-  input::placeholder{ color:#6a6a82; }
-  input[type=checkbox]{ width:17px; height:17px; accent-color:var(--accent2); }
-  .checkrow{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+  input:focus, select:focus{ border-color:var(--accent2); }
   button{
-    border:none; border-radius:10px; padding:9px 14px; font-size:13.5px; font-weight:600;
-    cursor:pointer; color:#fff; transition:opacity .15s, transform .05s, filter .15s; font-family:inherit;
+    border:none; border-radius:10px; padding:10px 14px;
+    font-size:13px; font-weight:600; font-family:inherit;
+    color:#fff; cursor:pointer; transition:filter .12s, transform .05s;
   }
   button:active{ transform:scale(.97); }
-  button:disabled{ opacity:.35; cursor:not-allowed; }
-  .btn-connect{ background:var(--accent2); }
-  .btn-test{ background:var(--panel2); border:1px solid var(--border) !important; color:var(--text); }
-  .btn-disconnect{ background:#3a3a4d; }
-  .btn-start{ background:var(--ok); color:#0a1a12; }
-  .btn-stop{ background:var(--danger); }
-  .btn-reset{ background:var(--warn); color:#2a1c00; }
-  .btn-send{ background:var(--accent2); padding:8px 12px; font-size:12.5px; }
-  .device-card{
-    background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;
+  button:disabled{ opacity:.32; cursor:not-allowed; }
+  .btn-row{ display:flex; gap:8px; }
+  .btn-row > button{ flex:1; }
+  .b-primary{ background:var(--accent2); }
+  .b-ok{ background:var(--ok); color:#08281c; }
+  .b-danger{ background:var(--danger); }
+  .b-warn{ background:var(--warn); color:#2a1a00; }
+  .b-ghost{ background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; }
+
+  .stat{ background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+  .stat .k{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .stat .v{ font-size:17px; font-weight:700; }
+
+  .dev-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .dev-head .title{ flex:1; min-width:0; }
+  .dev-head .title .n{ font-size:14px; font-weight:700; }
+  .dev-head .title .t{ font-size:11px; color:var(--muted); }
+  .badge{ font-size:10px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:var(--panel2); color:var(--muted); white-space:nowrap; }
+  .badge.on{ color:#08281c; background:var(--ok); border-color:transparent; }
+  .badge.busy{ color:#2a1a00; background:var(--warn); border-color:transparent; }
+  .badge.err{ color:#fff; background:var(--danger); border-color:transparent; }
+
+  .switch{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); }
+  .switch input{ width:17px; height:17px; accent-color:var(--accent); }
+
+  .bar{ background:#0f0f17; border:1px solid var(--border); border-radius:999px; height:11px; overflow:hidden; margin:9px 0; }
+  .bar > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .12s linear; }
+
+  details{ margin-top:10px; border-top:1px solid var(--border); padding-top:9px; }
+  summary{ cursor:pointer; color:var(--muted); font-size:12px; user-select:none; }
+  details > .body{ margin-top:10px; }
+
+  .pat-pool{ display:flex; flex-wrap:wrap; gap:6px; }
+  .pat-pool label{
+    display:flex; align-items:center; gap:5px; margin:0;
+    background:var(--panel2); border:1px solid var(--border); border-radius:8px;
+    padding:5px 8px; font-size:11px; color:var(--text);
   }
-  .device-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap; }
-  .device-name{ font-size:14px; font-weight:700; }
-  .device-actions{ display:flex; gap:6px; flex-wrap:wrap; }
-  .status-line{
-    font-size:12px; color:var(--muted); background:#14141c; border:1px solid var(--border);
-    border-radius:8px; padding:7px 9px; margin-bottom:8px; white-space:pre-wrap; word-break:break-word;
-  }
-  .status-line.ok{ color:var(--ok); border-color:var(--ok); }
-  .status-line.err{ color:var(--danger); border-color:var(--danger); }
-  .live-stat{
-    display:flex; gap:10px; font-size:12px; color:var(--muted); margin-bottom:8px;
-  }
-  .live-stat b{ color:var(--text); }
-  details{ margin-top:6px; }
-  details summary{ cursor:pointer; color:var(--muted); font-size:12px; padding:4px 0; }
-  .adv-body{ padding-top:8px; display:flex; flex-direction:column; gap:8px; }
-  .buttons{ display:flex; gap:10px; }
-  .buttons > button{ flex:1; }
-  .stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-  .stat{ background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
-  .stat .label{ font-size:11px; color:var(--muted); margin-bottom:4px; }
-  .stat .value{ font-size:18px; font-weight:700; }
-  #strengthBarWrap{
-    background:var(--panel2); border:1px solid var(--border); border-radius:999px; height:14px;
-    overflow:hidden; margin-bottom:14px;
-  }
-  #strengthBar{
-    height:100%; width:0%; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .2s linear;
-  }
+  .pat-pool input{ width:14px; height:14px; accent-color:var(--accent2); }
+
   #log{
-    background:#0e0e15; border:1px solid var(--border); border-radius:10px; padding:10px 12px;
-    height:160px; overflow-y:auto; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:11.5px; color:#9adfc0; white-space:pre-wrap; word-break:break-all;
+    background:#08080e; border:1px solid var(--border); border-radius:10px;
+    padding:9px 10px; height:170px; overflow-y:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px; color:#9adfc0; white-space:pre-wrap; word-break:break-all;
   }
-  .hint{ font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6; }
-  .hint.warn{ color:var(--warn); }
+  .hint{ font-size:11.5px; color:var(--muted); line-height:1.6; margin:9px 0 0; }
+  .hint b{ color:var(--warn); font-weight:600; }
+  .fieldset-title{ font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:.6px; margin:14px 0 7px; }
+  .fieldset-title:first-child{ margin-top:0; }
+  .inline{ display:flex; gap:8px; align-items:flex-end; }
+  .inline > *{ flex:1; }
+  .inline > button{ flex:0 0 auto; }
+  code{ background:#0f0f17; border:1px solid var(--border); border-radius:5px; padding:1px 5px; font-size:11px; }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>多裝置直連 BLE 遊戲</h1>
-  <p class="subtitle">直接以 Web Bluetooth 連線 Lovense Gush / Lovense Solace Pro / Satisfyer Signet Ring，不透過官方 App。每個裝置各自連線、各自啟用開關、各自進階設定；連好之後用下方單一按鈕統一開始 / 結束 / 重置。</p>
+<div class="wrap">
 
-  <section>
-    <h2>裝置</h2>
-    <div id="deviceList"></div>
-    <p class="hint warn">⚠ 開機順序：請先按裝置卡片的「連線」開始掃描，掃描視窗跳出後再打開玩具電源，成功率最高（細節見專案筆記 §2.5）。</p>
-    <p class="hint">Satisfyer 裝置廣播不含名稱，選擇器會列出附近所有藍牙裝置；若系統藍牙設定裡已經顯示過該裝置（例如「SF Signet Ring」），建議先在系統藍牙設定中 Forget 掉它，避免跟本頁面的 GATT 連線互搶，再回來按「連線」。</p>
-  </section>
+  <h1>Multi-Toy BLE Game</h1>
+  <p class="sub">Direct Web Bluetooth control &mdash; Lovense Gush &middot; Lovense Solace Pro &middot; Satisfyer Signet Ring</p>
 
-  <section id="gamePanel">
-    <h2>遊戲控制</h2>
-    <div class="stats">
-      <div class="stat"><div class="label">已進行時間</div><div class="value" id="timeDisplay">00:00</div></div>
-      <div class="stat"><div class="label">目前基礎強度</div><div class="value" id="baseDisplay">-</div></div>
+  <!-- ============ GLOBAL ============ -->
+  <section id="globalPanel">
+    <h2>Session</h2>
+    <div class="grid3">
+      <div class="stat"><div class="k">Elapsed</div><div class="v" id="gElapsed">00:00</div></div>
+      <div class="stat"><div class="k">Base</div><div class="v" id="gBase">&mdash;</div></div>
+      <div class="stat"><div class="k">Active</div><div class="v" id="gActive">0</div></div>
     </div>
-    <div id="strengthBarWrap"><div id="strengthBar"></div></div>
-
-    <div class="row" style="margin-bottom:10px;">
-      <div>
-        <label>重置後穩定強度 %（重置按鈕觸發時使用）</label>
-        <input type="number" id="resetStrength" value="50" min="0" max="100">
-      </div>
+    <div class="btn-row" style="margin-top:11px;">
+      <button id="startAll" class="b-ok" disabled>Start All</button>
+      <button id="stopAll" class="b-danger" disabled>Stop All</button>
     </div>
-
-    <div class="buttons" style="margin-bottom:8px;">
-      <button id="startBtn" class="btn-start" disabled>開始遊戲</button>
-      <button id="stopBtn" class="btn-stop" disabled>結束遊戲</button>
-    </div>
-    <button id="resetBtn" class="btn-reset" style="width:100%;" disabled>🔄 重置（1 秒穩定 → 回到起始狀態）</button>
-
+    <button id="resetAll" class="b-warn" style="width:100%; margin-top:8px; padding:15px;" disabled>Reset &mdash; 1s steady pulse, then restart ramp</button>
     <p class="hint">
-      開始後，每個「已啟用且已連線」的裝置各自隨機選一個 pattern，強度從 20% 起跳；之後每 1 秒基礎強度 +5%（上限 100%），每 5 秒各裝置各自重新隨機選一個 pattern（互不同步）。按下「重置」會讓所有裝置以你設定的強度輸出 1 秒穩定 pattern，結束後強度歸 20%、各自重新隨機選 pattern，並重新開始升級節奏。
+      Ramp starts at <b>20%</b>, <b>+5% every second</b> (capped at 100%, then holds).
+      Each device picks a random pattern at start and <b>re-rolls every 5 seconds</b>.
+      Solace Pro runs at <b>half</b> the intensity of the vibrators and re-randomises its stroke
+      start/end point on every pattern change. All values are editable per device below.
     </p>
   </section>
 
-  <section id="logPanelWrap">
-    <h2>連線 / 指令紀錄</h2>
+  <!-- ============ DEVICES ============ -->
+  <div id="devices"></div>
+
+  <!-- ============ LOG ============ -->
+  <section>
+    <h2>Log</h2>
     <div id="log"></div>
+    <div class="btn-row" style="margin-top:9px;">
+      <button class="b-ghost" id="clearLog">Clear</button>
+      <button class="b-ghost" id="wakeBtn">Keep screen awake</button>
+    </div>
+    <p class="hint">
+      <b>Connection order matters.</b> Press <i>Connect</i> first (opens the scanner), <b>then</b> power the
+      Lovense toy on. The reverse order scans fine but times out after ~30s.<br>
+      <b>Satisfyer:</b> if it was ever paired with the Satisfyer Connect app or Android Bluetooth
+      settings, <i>Forget</i> it in system settings, then hold the button 15s (reset pairing) and 4s
+      (discoverable) before connecting.
+    </p>
   </section>
+
 </div>
 
 <script>
 (function(){
-  'use strict';
-  var $ = function(id){ return document.getElementById(id); };
+'use strict';
 
-  // =========================================================
-  // 共用工具
-  // =========================================================
-  function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
-  function pseudoRandom(seed){
-    var x = Math.sin(seed * 12.9898) * 43758.5453;
-    return x - Math.floor(x);
-  }
-  function logEl(){ return $('log'); }
-  function log(msg){
-    var time = new Date().toLocaleTimeString('zh-TW', { hour12:false });
-    var el = logEl();
-    el.textContent += '[' + time + '] ' + msg + '\n';
-    el.scrollTop = el.scrollHeight;
-  }
-  function raceTimeout(promise, ms, label){
-    return new Promise(function(resolve, reject){
-      var t = setTimeout(function(){ reject(new Error((label||'操作') + '逾時（' + (ms/1000) + ' 秒）')); }, ms);
-      promise.then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
-    });
-  }
-  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+/* ================= helpers ================= */
+var $ = function(id){ return document.getElementById(id); };
+function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
+function pad2(n){ return (n<10?'0':'')+n; }
+function rand(a,b){ return a + Math.random()*(b-a); }
+function randInt(a,b){ return Math.floor(rand(a,b+1)); }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 
-  // Lovense gen3 service UUID 推導：前兩碼是機型代碼 ASCII hex，不足補 '0'
-  function codeToServiceUuid(code, group){
-    var c = (String(code).toUpperCase() + '0').slice(0, 2);
-    var hx = c.charCodeAt(0).toString(16) + c.charCodeAt(1).toString(16);
-    return hx + '0001-' + (group || '0023') + '-4bd4-bbd5-a6920e4c5653';
-  }
-  function lovenseUuidSet(code){
-    var svc = codeToServiceUuid(code);
-    return {
-      service: svc,
-      tx: svc.replace('0001-', '0002-'),
-      rx: svc.replace('0001-', '0003-')
-    };
-  }
-  // 已知機型代碼（用來把 optionalServices 灌滿，未來換裝置也掃得到）
-  var KNOWN_LOVENSE_CODES = ['A','B','C','D','H','L','N','O','P','R','S','T','U','W','X','Z',
-    'OC','EA','EB','ED','EZ','PA','PB','BA'];
-  function allLovenseOptionalServices(){
-    var out = [];
-    KNOWN_LOVENSE_CODES.forEach(function(code){
-      var u = lovenseUuidSet(code);
-      out.push(u.service);
-    });
-    return out;
-  }
+var logEl = $('log');
+function log(msg){
+  var d = new Date();
+  var line = '[' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + '] ' + msg;
+  logEl.textContent += (logEl.textContent ? '\n' : '') + line;
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
-  var SATISFYER_SERVICE = '51361500-c5e7-47c7-8a6e-47ebc99d80e8';
-  var SATISFYER_MODE_CHAR = '51361501-c5e7-47c7-8a6e-47ebc99d80e8';
-  var SATISFYER_VALUE_CHAR = '51361502-c5e7-47c7-8a6e-47ebc99d80e8';
+/* ================= patterns ================= */
+/* calc(t, base) -> intensity percent. t = seconds since this pattern started. */
+var PATTERNS = [
+  { id:'steady',    name:'Steady',    calc:function(t,b){ return b; } },
+  { id:'pulse',     name:'Pulse',     calc:function(t,b){ return (t % 1.0) < 0.6 ? b : b*0.25; } },
+  { id:'wave',      name:'Wave',      calc:function(t,b){ return b*0.65 + b*0.35*Math.sin(2*Math.PI*t/2.0); } },
+  { id:'spike',     name:'Spike',     calc:function(t,b){ var c=t%1.5; return c<0.2 ? b*1.25 : b*0.5; } },
+  { id:'ramp',      name:'Ramp',      calc:function(t,b){ return b*(0.30 + 0.70*((t%3.0)/3.0)); } },
+  { id:'heartbeat', name:'Heartbeat', calc:function(t,b){ var c=t%1.6;
+                                        if(c<0.13) return b; if(c<0.29) return b*0.20;
+                                        if(c<0.42) return b; return b*0.15; } },
+  { id:'stutter',   name:'Stutter',   calc:function(t,b){ return (t % 0.5) < 0.25 ? b : b*0.40; } },
+  { id:'surge',     name:'Surge',     calc:function(t,b){ var c=t%4.0;
+                                        return c<3.0 ? b*(0.40+0.60*(c/3.0)) : b*0.25; } }
+];
+function patternById(id){
+  for (var i=0;i<PATTERNS.length;i++) if (PATTERNS[i].id===id) return PATTERNS[i];
+  return PATTERNS[0];
+}
 
-  // =========================================================
-  // Pattern 定義（沿用單裝置版本的五種）
-  // =========================================================
-  var PATTERNS = [
-    { name: '穩定', calc: function(t, base){ return base; } },
-    { name: '脈衝', calc: function(t, base){
-        var cyc = t % 1.0;
-        return cyc < 0.6 ? base : base * 0.3;
-      } },
-    { name: '波浪', calc: function(t, base){
-        var wave = Math.sin(2 * Math.PI * t / 2.0);
-        return clamp(base * 0.7 + base * 0.3 * wave, 0, 100);
-      } },
-    { name: '尖峰', calc: function(t, base){
-        var cyc = t % 1.5;
-        return cyc < 0.2 ? 100 : base * 0.5;
-      } },
-    { name: '隨機', calc: function(t, base){
-        var seed = Math.floor(t / 0.4);
-        var r = pseudoRandom(seed);
-        return clamp(base + (r - 0.5) * 30, 0, 100);
-      } }
-  ];
-  function pickRandomPattern(excludeName){
-    var pool = PATTERNS;
-    if (excludeName && PATTERNS.length > 1) {
-      pool = PATTERNS.filter(function(p){ return p.name !== excludeName; });
-    }
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
+/* ================= BLE constants ================= */
+var LOVENSE_CODES = (function(){
+  var out = [];
+  for (var c=65; c<=90; c++) out.push(String.fromCharCode(c)); // A..Z -> padded to 'X0'
+  ['ED','EZ','EA','EB','PA','PB','BA','OC'].forEach(function(x){ out.push(x); });
+  return out;
+})();
+function lovenseServiceUuids(code){
+  var c  = (String(code).toUpperCase() + '0').slice(0,2);
+  var hx = c.charCodeAt(0).toString(16) + c.charCodeAt(1).toString(16);
+  return ['0023','0024','0025'].map(function(g){
+    return hx + '0001-' + g + '-4bd4-bbd5-a6920e4c5653';
+  });
+}
+var LOVENSE_OPTIONAL = (function(){
+  var s = [];
+  LOVENSE_CODES.forEach(function(code){ s = s.concat(lovenseServiceUuids(code)); });
+  s.push('0000fff0-0000-1000-8000-00805f9b34fb');              // gen1
+  s.push('6e400001-b5a3-f393-e0a9-e50e24dcca9e');              // gen2 (NUS)
+  return s;
+})();
 
-  // =========================================================
-  // 裝置基底類別
-  // =========================================================
-  function BaseDevice(cfg){
-    this.cfg = cfg;              // 靜態設定
-    this.device = null;
-    this.server = null;
-    this.connected = false;
-    this.enabled = false;
-    this.queue = Promise.resolve();
-    this.lastSentValue = null;
-    this.pattern = PATTERNS[0];
-    this.patternStartTime = Date.now();
-    this.wakeLock = null;
+var SF_SVC_LIVE   = '51361500-c5e7-47c7-8a6e-47ebc99d80e8';
+var SF_CH_MODE    = '51361501-c5e7-47c7-8a6e-47ebc99d80e8';
+var SF_CH_VALUE   = '51361502-c5e7-47c7-8a6e-47ebc99d80e8';
+var SF_SVC_DEVICE = '51361600-c5e7-47c7-8a6e-47ebc99d80e8';
+var SF_OPTIONAL   = [SF_SVC_LIVE, SF_SVC_DEVICE, 'battery_service', 'device_information'];
+
+var SF_MODE_START = 0x01, SF_MODE_PAUSE = 0x03, SF_MODE_STOP = 0x07;
+
+/* ================= device definitions ================= */
+var DEFS = [
+  {
+    id:'gush', name:'Lovense Gush', type:'Vibration', brand:'lovense', motion:'vibrate',
+    code:'ED', scale:100,
+    cmdOptions:['Vibrate:{v};','Vibrate1:{v};','Vibrate2:{v};'],
+    cmdDefault:'Vibrate:{v};', valueMax:20
+  },
+  {
+    id:'solace', name:'Lovense Solace Pro', type:'Thrusting', brand:'lovense', motion:'thrust',
+    code:'BA', scale:50,
+    cmdOptions:['Thrusting:{v};','Thrusting:{v}:{a}:{b};','Thrust:{v};','Depth:{v};','Position:{v};'],
+    cmdDefault:'Thrusting:{v};', valueMax:20,
+    depthOptions:['(none)','DepthRange:{a}:{b};','Depth:{a}:{b};','FSetup:{a}:{b};','Position:{a}:{b};'],
+    depthDefault:'DepthRange:{a}:{b};', depthMax:20
+  },
+  {
+    id:'signet', name:'Satisfyer Signet Ring', type:'Vibration', brand:'satisfyer', motion:'vibrate',
+    scale:100, valueMax:100
   }
-  BaseDevice.prototype.enqueue = function(fn){
-    var self = this;
-    this.queue = this.queue.then(fn, fn);
-    return this.queue;
+];
+
+/* ================= per-device state ================= */
+var devs = {};
+
+function makeState(def){
+  return {
+    def: def,
+    // BLE
+    bt:null, server:null, tx:null, rx:null,
+    sfMode:null, sfValue:null, sfStarted:false,
+    connected:false, connecting:false,
+    mutex: Promise.resolve(),
+    lastSent: null, lastSentAt: 0,
+    // game
+    enabled: true,
+    running: false,
+    rampStart: 0,
+    patternStart: 0,
+    patternChangeAt: 0,
+    pattern: PATTERNS[0],
+    resetUntil: 0,
+    depthA: 0, depthB: 0,
+    // ui refs filled later
+    ui:{}
   };
-  BaseDevice.prototype.disconnect = function(){
-    if (this.device && this.device.gatt && this.device.gatt.connected) {
-      try { this.device.gatt.disconnect(); } catch(e){}
-    }
-    this.connected = false;
-    this.server = null;
-  };
+}
 
-  // ---- Lovense（ASCII 指令）----
-  function LovenseDevice(cfg){ BaseDevice.call(this, cfg); this.txChar = null; this.rxChar = null; }
-  LovenseDevice.prototype = Object.create(BaseDevice.prototype);
+/* ================= BLE plumbing ================= */
+function withBle(st, fn){
+  var run = st.mutex.then(fn, fn);
+  st.mutex = run.catch(function(){});
+  return run;
+}
+function withTimeout(promise, ms, label){
+  return new Promise(function(res, rej){
+    var to = setTimeout(function(){ rej(new Error(label + ' timed out after ' + ms + 'ms')); }, ms);
+    promise.then(function(v){ clearTimeout(to); res(v); },
+                 function(e){ clearTimeout(to); rej(e); });
+  });
+}
+function delay(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
-  LovenseDevice.prototype.getUuids = function(){
-    var codeOverride = this.cfg.getCode ? this.cfg.getCode() : this.cfg.code;
-    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
-    if (manual && manual.service) return manual;
-    return lovenseUuidSet(codeOverride);
-  };
+function writeCh(ch, buf){
+  if (ch.properties && ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) {
+    return ch.writeValueWithoutResponse(buf).catch(function(){ return ch.writeValue(buf); });
+  }
+  return ch.writeValue(buf);
+}
 
-  LovenseDevice.prototype.connect = function(onStatus){
-    var self = this;
-    var uuids = this.getUuids();
-    var extraServices = allLovenseOptionalServices().concat([uuids.service]);
-    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
-    if (manual && manual.service) extraServices.push(manual.service);
+function setStatus(st, text, cls){
+  st.ui.badge.textContent = text;
+  st.ui.badge.className = 'badge' + (cls ? ' ' + cls : '');
+}
 
-    onStatus('掃描中…請在跳出的選擇器出現後再開啟玩具電源', '');
-    return navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'LVS' }, { namePrefix: 'LOVE' }],
-      optionalServices: extraServices
-    }).then(function(device){
-      self.device = device;
-      log(self.cfg.label + '：已選擇裝置 ' + (device.name || '(未知名稱)'));
-      device.addEventListener('gattserverdisconnected', function(){
-        self.connected = false;
-        onStatus('已斷線', 'err');
-        log(self.cfg.label + '：GATT 已斷線');
-      });
-      onStatus('連線中…', '');
-      return raceTimeout(device.gatt.connect(), 12000, 'GATT 連線');
-    }).then(function(server){
-      self.server = server;
-      return sleep(600);
-    }).then(function(){
-      return self.discoverCharacteristics(uuids);
-    }).then(function(){
-      return self.rxChar ? self.rxChar.startNotifications().catch(function(){}) : null;
-    }).then(function(){
-      return sleep(350);
-    }).then(function(){
-      self.connected = true;
-      onStatus('已連線（Service ' + (self._foundService || uuids.service).slice(0,8) + '…）', 'ok');
-      log(self.cfg.label + '：連線成功');
-    }).catch(function(err){
-      self.connected = false;
-      onStatus('連線失敗：' + err.message, 'err');
-      log(self.cfg.label + '：連線失敗 - ' + err.message);
-      throw err;
-    });
-  };
-
-  LovenseDevice.prototype.discoverCharacteristics = function(uuids){
-    var self = this;
-    return self.server.getPrimaryService(uuids.service).then(function(service){
-      self._foundService = uuids.service;
-      return Promise.all([
-        service.getCharacteristic(uuids.tx).catch(function(){ return null; }),
-        service.getCharacteristic(uuids.rx).catch(function(){ return null; })
-      ]);
-    }).then(function(res){
-      if (res[0]) { self.txChar = res[0]; self.rxChar = res[1]; return; }
-      // 已知 UUID 找不到 tx，退回全服務掃描找第一個可寫入 / 可通知的 characteristic
-      log(self.cfg.label + '：已知 UUID 找不到特徵值，改用全掃描辨識 TX/RX');
-      return self.server.getPrimaryServices().then(function(services){
-        var chain = Promise.resolve();
-        services.forEach(function(svc){
-          chain = chain.then(function(){
-            return svc.getCharacteristics().then(function(chars){
-              chars.forEach(function(c){
-                if (!self.txChar && (c.properties.write || c.properties.writeWithoutResponse)) {
-                  self.txChar = c; self._foundService = svc.uuid;
-                }
-                if (!self.rxChar && (c.properties.notify || c.properties.indicate)) {
-                  self.rxChar = c;
-                }
-              });
-            }).catch(function(){});
+/* ---- Lovense ---- */
+function connectLovense(st){
+  var enc = new TextEncoder();
+  return navigator.bluetooth.requestDevice({
+    filters: [{ namePrefix:'LVS' }, { namePrefix:'LOVE' }],
+    optionalServices: LOVENSE_OPTIONAL
+  }).then(function(bt){
+    st.bt = bt;
+    bt.addEventListener('gattserverdisconnected', function(){ onDisconnected(st); });
+    log(st.def.name + ': selected "' + (bt.name||'(no name)') + '", connecting...');
+    return withTimeout(bt.gatt.connect(), 12000, 'gatt.connect');
+  }).then(function(server){
+    st.server = server;
+    return delay(600);
+  }).then(function(){
+    return st.server.getPrimaryServices();
+  }).then(function(services){
+    var chain = Promise.resolve();
+    services.forEach(function(svc){
+      chain = chain.then(function(){
+        if (st.tx && st.rx) return null;
+        return svc.getCharacteristics().then(function(chs){
+          chs.forEach(function(ch){
+            var p = ch.properties;
+            if (!st.tx && (p.write || p.writeWithoutResponse)) st.tx = ch;
+            if (!st.rx && (p.notify || p.indicate)) st.rx = ch;
           });
-        });
-        return chain;
-      });
-    }).then(function(){
-      if (!self.txChar) throw new Error('找不到可寫入的 TX 特徵值，請確認裝置或用手動 UUID 覆寫');
-    });
-  };
-
-  LovenseDevice.prototype.writeAscii = function(text){
-    var self = this;
-    var payload = new TextEncoder().encode(text);
-    return self.enqueue(function(){
-      if (!self.txChar) return Promise.resolve();
-      var p = self.txChar.writeValueWithoutResponse
-        ? self.txChar.writeValueWithoutResponse(payload)
-        : self.txChar.writeValue(payload);
-      return p.catch(function(){
-        return self.txChar.writeValue ? self.txChar.writeValue(payload) : Promise.resolve();
-      }).catch(function(err){
-        log(self.cfg.label + '：寫入失敗 - ' + err.message);
+        }).catch(function(){});
       });
     });
-  };
-
-  LovenseDevice.prototype.applyPercent = function(pct){
-    var lv = Math.max(0, Math.min(20, Math.round(pct / 100 * 20)));
-    if (lv === this.lastSentValue) return;
-    this.lastSentValue = lv;
-    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
-    this.writeAscii(cmd + ':' + lv + ';');
-  };
-
-  LovenseDevice.prototype.stopMotor = function(){
-    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
-    this.lastSentValue = null;
-    return this.writeAscii(cmd + ':0;');
-  };
-
-  LovenseDevice.prototype.testPulse = function(sec){
-    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
-    var self = this;
-    this.writeAscii(cmd + ':10;');
-    log(self.cfg.label + '：測試輸出中（' + cmd + ':10;）');
-    setTimeout(function(){ self.writeAscii(cmd + ':0;'); log(self.cfg.label + '：測試結束'); }, (sec||3)*1000);
-  };
-
-  // ---- Satisfyer（binary 指令）----
-  function SatisfyerDevice(cfg){ BaseDevice.call(this, cfg); this.modeChar = null; this.valueChar = null; }
-  SatisfyerDevice.prototype = Object.create(BaseDevice.prototype);
-
-  SatisfyerDevice.prototype.getUuids = function(){
-    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
-    if (manual && manual.service) return manual;
-    return { service: SATISFYER_SERVICE, mode: SATISFYER_MODE_CHAR, value: SATISFYER_VALUE_CHAR };
-  };
-
-  SatisfyerDevice.prototype.connect = function(onStatus){
-    var self = this;
-    var uuids = this.getUuids();
-    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
-    var extraServices = [SATISFYER_SERVICE];
-    if (manual && manual.service) extraServices.push(manual.service);
-
-    onStatus('開啟裝置選擇器（Satisfyer 不廣播名稱，請自行從清單辨認）…', '');
-    return navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: extraServices
-    }).then(function(device){
-      self.device = device;
-      log(self.cfg.label + '：已選擇裝置 ' + (device.name || '(未知名稱)'));
-      device.addEventListener('gattserverdisconnected', function(){
-        self.connected = false;
-        onStatus('已斷線', 'err');
-        log(self.cfg.label + '：GATT 已斷線');
+    return chain;
+  }).then(function(){
+    if (!st.tx) throw new Error('no writable characteristic found');
+    log(st.def.name + ': TX ' + st.tx.uuid + (st.rx ? ' / RX ' + st.rx.uuid : ' / no RX'));
+    if (!st.rx) return null;
+    return st.rx.startNotifications().then(function(){
+      st.rx.addEventListener('characteristicvaluechanged', function(e){
+        var s = new TextDecoder().decode(e.target.value);
+        log(st.def.name + ' <- ' + s);
       });
-      onStatus('連線中…', '');
-      return raceTimeout(device.gatt.connect(), 12000, 'GATT 連線');
-    }).then(function(server){
-      self.server = server;
-      return sleep(600);
-    }).then(function(){
-      return self.server.getPrimaryService(uuids.service);
-    }).then(function(service){
-      return Promise.all([
-        service.getCharacteristic(uuids.mode),
-        service.getCharacteristic(uuids.value)
-      ]);
-    }).then(function(res){
-      self.modeChar = res[0];
-      self.valueChar = res[1];
-      return sleep(350);
-    }).then(function(){
-      self.connected = true;
-      onStatus('已連線', 'ok');
-      log(self.cfg.label + '：連線成功');
-    }).catch(function(err){
-      self.connected = false;
-      onStatus('連線失敗：' + err.message, 'err');
-      log(self.cfg.label + '：連線失敗 - ' + err.message);
-      throw err;
+    }).catch(function(){ log(st.def.name + ': notifications unavailable (non-fatal)'); });
+  }).then(function(){
+    return delay(350);
+  }).then(function(){
+    st.connected = true;
+    return sendRaw(st, 'DeviceType;');
+  }).then(function(){
+    return sendRaw(st, 'Battery;');
+  });
+}
+
+/* ---- Satisfyer ---- */
+function connectSatisfyer(st){
+  var scanAll = st.ui.sfScanAll && st.ui.sfScanAll.checked;
+  var opts = scanAll
+    ? { acceptAllDevices:true, optionalServices: SF_OPTIONAL }
+    : { filters:[{ namePrefix:'SF' }], optionalServices: SF_OPTIONAL };
+  return navigator.bluetooth.requestDevice(opts).then(function(bt){
+    st.bt = bt;
+    bt.addEventListener('gattserverdisconnected', function(){ onDisconnected(st); });
+    log(st.def.name + ': selected "' + (bt.name||'(no name)') + '", connecting...');
+    return withTimeout(bt.gatt.connect(), 12000, 'gatt.connect');
+  }).then(function(server){
+    st.server = server;
+    return delay(600);
+  }).then(function(){
+    return st.server.getPrimaryService(SF_SVC_LIVE);
+  }).then(function(svc){
+    return Promise.all([ svc.getCharacteristic(SF_CH_MODE), svc.getCharacteristic(SF_CH_VALUE) ]);
+  }).then(function(chs){
+    st.sfMode = chs[0]; st.sfValue = chs[1];
+    st.sfStarted = false;
+    st.connected = true;
+    log(st.def.name + ': live-control service ready (mode ...1501 / value ...1502, big-endian)');
+    return delay(200);
+  });
+}
+
+function connect(st){
+  if (!navigator.bluetooth) { log('Web Bluetooth is not available in this browser.'); return; }
+  if (st.connecting || st.connected) return;
+  st.connecting = true;
+  setStatus(st, 'Connecting', 'busy');
+  st.ui.connectBtn.disabled = true;
+  var t0 = Date.now();
+  var p = st.def.brand === 'lovense' ? connectLovense(st) : connectSatisfyer(st);
+  p.then(function(){
+    st.connecting = false;
+    setStatus(st, 'Connected', 'on');
+    st.ui.connectBtn.textContent = 'Reconnect';
+    st.ui.connectBtn.disabled = false;
+    st.ui.disconnectBtn.disabled = false;
+    log(st.def.name + ': connected in ' + ((Date.now()-t0)/1000).toFixed(1) + 's');
+    requestWakeLock();
+    if (sessionRunning && st.enabled) startDevice(st);   // join a game already in progress
+    refreshGlobalButtons();
+  }).catch(function(err){
+    st.connecting = false; st.connected = false;
+    var secs = ((Date.now()-t0)/1000).toFixed(1);
+    setStatus(st, 'Failed', 'err');
+    st.ui.connectBtn.disabled = false;
+    log(st.def.name + ': FAILED after ' + secs + 's — ' + (err && err.message ? err.message : err));
+    if (parseFloat(secs) > 8) log('  ↳ ~timeout. Power-cycle the toy, press Connect first, then power it on.');
+    try { if (st.bt && st.bt.gatt && st.bt.gatt.connected) st.bt.gatt.disconnect(); } catch(e){}
+    refreshGlobalButtons();
+  });
+}
+
+function onDisconnected(st){
+  st.connected = false; st.tx = null; st.rx = null;
+  st.sfMode = null; st.sfValue = null; st.sfStarted = false; st.lastSent = null;
+  setStatus(st, 'Disconnected');
+  st.ui.disconnectBtn.disabled = true;
+  st.ui.connectBtn.disabled = false;
+  log(st.def.name + ': disconnected');
+  refreshGlobalButtons();
+}
+
+function disconnect(st){
+  stopDevice(st);
+  setTimeout(function(){
+    try { if (st.bt && st.bt.gatt && st.bt.gatt.connected) st.bt.gatt.disconnect(); } catch(e){}
+  }, 250);
+}
+
+/* ---- raw send ---- */
+function sendRaw(st, text){
+  if (!st.connected) return Promise.resolve();
+  if (st.def.brand !== 'lovense' || !st.tx) return Promise.resolve();
+  var buf = new TextEncoder().encode(text);
+  return withBle(st, function(){ return writeCh(st.tx, buf); })
+    .then(function(){ log(st.def.name + ' -> ' + text); })
+    .catch(function(e){ log(st.def.name + ' -> ' + text + ' FAILED: ' + (e.message||e)); });
+}
+
+/* ---- intensity ---- */
+function sendIntensity(st, pct){
+  if (!st.connected) return;
+  var def = st.def;
+  if (def.brand === 'lovense'){
+    var vmax = num(st.ui.valueMax, def.valueMax);
+    var lvl = clamp(Math.round(pct/100*vmax), 0, vmax);
+    if (st.lastSent === lvl) return;
+    st.lastSent = lvl;
+    var tmpl = currentCmdTemplate(st);
+    var s = tmpl.replace('{v}', lvl).replace('{a}', st.depthA).replace('{b}', st.depthB);
+    var buf = new TextEncoder().encode(s);
+    withBle(st, function(){ return writeCh(st.tx, buf); }).catch(function(e){
+      log(def.name + ': write failed — ' + (e.message||e));
     });
-  };
-
-  SatisfyerDevice.prototype.writeMode = function(val){
-    var self = this;
-    return self.enqueue(function(){
-      if (!self.modeChar) return Promise.resolve();
-      var payload = new Uint8Array([val]);
-      var p = self.modeChar.writeValueWithoutResponse
-        ? self.modeChar.writeValueWithoutResponse(payload)
-        : self.modeChar.writeValue(payload);
-      return p.catch(function(){
-        return self.modeChar.writeValue ? self.modeChar.writeValue(payload) : Promise.resolve();
-      }).catch(function(err){ log(self.cfg.label + '：mode 寫入失敗 - ' + err.message); });
-    });
-  };
-
-  SatisfyerDevice.prototype.writeValue = function(intVal){
-    var self = this;
-    return self.enqueue(function(){
-      if (!self.valueChar) return Promise.resolve();
-      var payload = new Uint8Array([intVal & 0xff, 0, 0, 0]);
-      var p = self.valueChar.writeValueWithoutResponse
-        ? self.valueChar.writeValueWithoutResponse(payload)
-        : self.valueChar.writeValue(payload);
-      return p.catch(function(){
-        return self.valueChar.writeValue ? self.valueChar.writeValue(payload) : Promise.resolve();
-      }).catch(function(err){ log(self.cfg.label + '：value 寫入失敗 - ' + err.message); });
-    });
-  };
-
-  SatisfyerDevice.prototype.startMotor = function(){
-    this.lastSentValue = null;
-    return this.writeMode(0x01);
-  };
-
-  SatisfyerDevice.prototype.applyPercent = function(pct){
-    var v = Math.max(0, Math.min(100, Math.round(pct)));
-    if (v === this.lastSentValue) return;
-    this.lastSentValue = v;
-    this.writeValue(v);
-  };
-
-  SatisfyerDevice.prototype.stopMotor = function(){
-    var self = this;
-    self.lastSentValue = null;
-    return self.writeValue(0).then(function(){ return self.writeMode(0x07); });
-  };
-
-  SatisfyerDevice.prototype.testPulse = function(sec){
-    var self = this;
-    self.startMotor().then(function(){
-      self.writeValue(30);
-      log(self.cfg.label + '：測試輸出中（value=30）');
-      setTimeout(function(){ self.stopMotor(); log(self.cfg.label + '：測試結束'); }, (sec||3)*1000);
-    });
-  };
-
-  // =========================================================
-  // 裝置設定清單
-  // =========================================================
-  var DEVICE_DEFS = [
-    {
-      id: 'gush', label: 'Lovense Gush', type: 'lovense', code: 'ED', cmdName: 'Vibrate',
-      hint: '確認可行：Service 45440001-…（TX …0002 / RX …0003）'
-    },
-    {
-      id: 'solace', label: 'Lovense Solace Pro', type: 'lovense', code: 'BA', cmdName: 'Thrusting',
-      cmdOptions: ['Thrusting', 'Depth', 'FSetup', 'Position'],
-      hint: '⚠ 抽插協定未經實測驗證，若 Thrusting 無反應，改用下方指令下拉選單試 Depth / FSetup / Position'
-    },
-    {
-      id: 'satisfyer', label: 'Satisfyer Signet Ring', type: 'satisfyer',
-      hint: 'Service 51361500-…（mode …1501 / value …1502），單馬達'
+  } else {
+    var v = clamp(Math.round(pct), 0, 100);
+    // resend at least once a second even when unchanged: some Satisfyer firmware
+    // stops the motor without a periodic refresh
+    var nowMs = Date.now();
+    if (st.lastSent === v && (nowMs - st.lastSentAt) < 1000) return;
+    st.lastSent = v; st.lastSentAt = nowMs;
+    if (v <= 0){
+      st.sfStarted = false;
+      withBle(st, function(){ return writeCh(st.sfMode, Uint8Array.of(SF_MODE_STOP)); }).catch(function(){});
+      return;
     }
-  ];
-
-  var instances = {}; // id -> device instance
-  var uiRefs = {};    // id -> dom refs
-
-  function buildDeviceCard(def){
-    var card = document.createElement('div');
-    card.className = 'device-card';
-
-    var advId = 'adv_' + def.id;
-    var cmdSelectHtml = '';
-    if (def.cmdOptions) {
-      cmdSelectHtml = '<div><label>指令名稱</label><select id="cmd_' + def.id + '">' +
-        def.cmdOptions.map(function(c){ return '<option value="' + c + '"' + (c === def.cmdName ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
-        '</select></div>';
+    if (!st.sfStarted){
+      st.sfStarted = true;
+      withBle(st, function(){ return writeCh(st.sfMode, Uint8Array.of(SF_MODE_START)); }).catch(function(){});
     }
-
-    card.innerHTML =
-      '<div class="device-head">' +
-        '<div class="device-name">' + def.label + '</div>' +
-        '<span class="badge off" id="badge_' + def.id + '">未連線</span>' +
-      '</div>' +
-      '<div class="status-line" id="status_' + def.id + '">尚未連線</div>' +
-      '<div class="checkrow" style="margin-bottom:8px;">' +
-        '<input type="checkbox" id="enable_' + def.id + '" disabled>' +
-        '<label style="margin:0;" for="enable_' + def.id + '">啟用（納入統一開始 / 停止 / 重置）</label>' +
-      '</div>' +
-      '<div class="device-actions">' +
-        '<button class="btn-connect" id="connect_' + def.id + '">連線</button>' +
-        '<button class="btn-test" id="test_' + def.id + '" disabled>測試 3 秒</button>' +
-        '<button class="btn-disconnect" id="disconnect_' + def.id + '" disabled>中斷</button>' +
-      '</div>' +
-      '<div class="live-stat"><span>Pattern：<b id="pat_' + def.id + '">-</b></span><span>輸出：<b id="pct_' + def.id + '">-</b></span></div>' +
-      '<details id="' + advId + '">' +
-        '<summary>進階設定（手動 UUID 覆寫' + (def.cmdOptions ? ' / 指令名稱' : '') + '）</summary>' +
-        '<div class="adv-body">' +
-          cmdSelectHtml +
-          '<div><label>手動 Service UUID（留空使用內建值）</label><input type="text" id="svc_' + def.id + '" placeholder="例如 45440001-0023-4bd4-bbd5-a6920e4c5653"></div>' +
-          (def.type === 'lovense'
-            ? '<div class="row"><div><label>TX UUID</label><input type="text" id="tx_' + def.id + '" placeholder="…0002-…"></div><div><label>RX UUID</label><input type="text" id="rx_' + def.id + '" placeholder="…0003-…"></div></div>'
-            : '<div class="row"><div><label>Mode UUID</label><input type="text" id="mode_' + def.id + '" placeholder="…1501-…"></div><div><label>Value UUID</label><input type="text" id="val_' + def.id + '" placeholder="…1502-…"></div></div>') +
-          '<div class="row"><div><input type="text" id="raw_' + def.id + '" placeholder="Raw 指令 / 數值（Lovense: Vibrate:10; ｜ Satisfyer: 0-100）"></div><button class="btn-send" id="rawsend_' + def.id + '">送出</button></div>' +
-          '<p class="hint">' + def.hint + '</p>' +
-        '</div>' +
-      '</details>';
-
-    return card;
+    // 4 bytes, BIG-endian: [0,0,0,value]  (verified on Satisfyer hardware)
+    withBle(st, function(){ return writeCh(st.sfValue, Uint8Array.of(0,0,0,v)); }).catch(function(e){
+      log(def.name + ': write failed — ' + (e.message||e));
+    });
   }
+}
 
-  DEVICE_DEFS.forEach(function(def){
-    var card = buildDeviceCard(def);
-    $('deviceList').appendChild(card);
+function hardStop(st){
+  if (!st.connected) return;
+  st.lastSent = null;
+  if (st.def.brand === 'lovense'){
+    var tmpl = currentCmdTemplate(st);
+    var s = tmpl.replace('{v}', 0).replace('{a}', st.depthA).replace('{b}', st.depthB);
+    sendRaw(st, s);
+  } else {
+    st.sfStarted = false;
+    withBle(st, function(){ return writeCh(st.sfValue, Uint8Array.of(0,0,0,0)); }).catch(function(){});
+    withBle(st, function(){ return writeCh(st.sfMode, Uint8Array.of(SF_MODE_STOP)); }).catch(function(){});
+  }
+}
 
-    var cfg = {
-      label: def.label,
-      code: def.code,
-      cmdName: def.cmdName,
-      getCmdName: def.cmdOptions ? function(){
-        var el = $('cmd_' + def.id);
-        return el ? el.value : def.cmdName;
-      } : undefined,
-      getManualUuids: function(){
-        var svc = ($('svc_' + def.id).value || '').trim();
-        if (!svc) return null;
-        if (def.type === 'lovense') {
-          var tx = ($('tx_' + def.id).value || '').trim();
-          var rx = ($('rx_' + def.id).value || '').trim();
-          return { service: svc, tx: tx || svc.replace('0001-', '0002-'), rx: rx || svc.replace('0001-', '0003-') };
-        } else {
-          var mode = ($('mode_' + def.id).value || '').trim();
-          var val = ($('val_' + def.id).value || '').trim();
-          return { service: svc, mode: mode || svc.replace('1500-', '1501-'), value: val || svc.replace('1500-', '1502-') };
-        }
-      }
-    };
+/* ================= settings readers ================= */
+function num(el, fallback){
+  if (!el) return fallback;
+  var v = parseFloat(el.value);
+  return isNaN(v) ? fallback : v;
+}
+function currentCmdTemplate(st){
+  if (!st.ui.cmdSel) return 'Vibrate:{v};';
+  var v = st.ui.cmdSel.value;
+  if (v === '__custom__') return st.ui.cmdCustom.value || 'Vibrate:{v};';
+  return v;
+}
+function currentDepthTemplate(st){
+  if (!st.ui.depthSel) return null;
+  var v = st.ui.depthSel.value;
+  if (v === '(none)') return null;
+  if (v === '__custom__') return st.ui.depthCustom.value || null;
+  return v;
+}
+function enabledPatterns(st){
+  var out = [];
+  st.ui.patBoxes.forEach(function(cb){ if (cb.checked) out.push(patternById(cb.value)); });
+  return out.length ? out : [PATTERNS[0]];
+}
 
-    var instance = def.type === 'lovense' ? new LovenseDevice(cfg) : new SatisfyerDevice(cfg);
-    instances[def.id] = instance;
+/* ================= game engine ================= */
+var TICK_MS = 200;
+var tickTimer = null, uiTimer = null;
+var sessionStart = 0, sessionRunning = false;
 
-    uiRefs[def.id] = {
-      badge: $('badge_' + def.id),
-      status: $('status_' + def.id),
-      enable: $('enable_' + def.id),
-      connectBtn: $('connect_' + def.id),
-      testBtn: $('test_' + def.id),
-      disconnectBtn: $('disconnect_' + def.id),
-      patDisplay: $('pat_' + def.id),
-      pctDisplay: $('pct_' + def.id),
-      rawInput: $('raw_' + def.id),
-      rawBtn: $('rawsend_' + def.id)
-    };
+function rollPattern(st, now){
+  st.pattern = pick(enabledPatterns(st));
+  st.patternStart = now;
+  st.patternChangeAt = now + num(st.ui.patInterval, 5) * 1000;
+  if (st.def.motion === 'thrust' && st.ui.depthRandom && st.ui.depthRandom.checked){
+    var lo = num(st.ui.depthMin, 0), hi = num(st.ui.depthMax, 20);
+    if (hi < lo) { var t2 = lo; lo = hi; hi = t2; }
+    var span = Math.max(1, Math.round((hi - lo) * 0.25));
+    var a = randInt(lo, Math.max(lo, hi - span));
+    var b = randInt(Math.min(hi, a + span), hi);
+    st.depthA = a; st.depthB = b;
+    var dt = currentDepthTemplate(st);
+    if (dt) sendRaw(st, dt.replace('{a}', a).replace('{b}', b).replace('{v}', st.lastSent||0));
+    log(st.def.name + ': pattern ' + st.pattern.name + ', stroke ' + a + '→' + b);
+    return;
+  }
+  log(st.def.name + ': pattern ' + st.pattern.name);
+}
 
-    function setStatus(text, kind){
-      uiRefs[def.id].status.textContent = text;
-      uiRefs[def.id].status.className = 'status-line' + (kind ? ' ' + kind : '');
-    }
+function beginRamp(st, now){
+  st.rampStart = now;
+  st.resetUntil = 0;
+  st.lastSent = null;
+  rollPattern(st, now);
+}
 
-    uiRefs[def.id].connectBtn.addEventListener('click', function(){
-      if (!navigator.bluetooth) {
-        setStatus('此瀏覽器不支援 Web Bluetooth，請用 Android Chrome 開啟', 'err');
+function startDevice(st){
+  if (!st.connected || !st.enabled || st.running) return;
+  st.running = true;
+  beginRamp(st, Date.now());
+}
+
+function stopDevice(st){
+  if (!st.running && st.lastSent === null) { return; }
+  st.running = false;
+  st.resetUntil = 0;
+  hardStop(st);
+  st.ui.bar.style.width = '0%';
+  st.ui.now.textContent = '—';
+  st.ui.pat.textContent = '—';
+}
+
+function activeStates(){
+  return Object.keys(devs).map(function(k){ return devs[k]; })
+    .filter(function(st){ return st.connected && st.enabled; });
+}
+
+function startAll(){
+  var list = activeStates();
+  if (!list.length){ log('Nothing to start — no device is both connected and enabled.'); return; }
+  sessionRunning = true;
+  sessionStart = Date.now();
+  list.forEach(startDevice);
+  if (!tickTimer) tickTimer = setInterval(tick, TICK_MS);
+  if (!uiTimer)   uiTimer   = setInterval(updateGlobalUi, 250);
+  log('=== Game started with ' + list.length + ' device(s) ===');
+  refreshGlobalButtons();
+  requestWakeLock();
+}
+
+function stopAll(){
+  sessionRunning = false;
+  Object.keys(devs).forEach(function(k){ stopDevice(devs[k]); });
+  if (tickTimer){ clearInterval(tickTimer); tickTimer = null; }
+  if (uiTimer){ clearInterval(uiTimer); uiTimer = null; }
+  $('gBase').textContent = '—';
+  log('=== Game stopped ===');
+  refreshGlobalButtons();
+}
+
+function resetAll(){
+  if (!sessionRunning) return;
+  var now = Date.now();
+  var n = 0;
+  Object.keys(devs).forEach(function(k){
+    var st = devs[k];
+    if (!st.running) return;
+    st.resetUntil = now + num(st.ui.resetSec, 1) * 1000;
+    st.lastSent = null;
+    n++;
+  });
+  sessionStart = now;
+  log('=== RESET: ' + n + ' device(s) hold a steady pulse, then restart from the beginning ===');
+}
+
+function tick(){
+  var now = Date.now();
+  Object.keys(devs).forEach(function(k){
+    var st = devs[k];
+    if (!st.running || !st.connected) return;
+
+    // --- reset pulse window: steady pattern at the configured strength ---
+    if (st.resetUntil){
+      if (now < st.resetUntil){
+        var rp = clamp(num(st.ui.resetPct, 20), 0, 100);
+        sendIntensity(st, rp * num(st.ui.scale, 100) / 100);
+        st.ui.bar.style.width = rp + '%';
+        st.ui.now.textContent = Math.round(rp * num(st.ui.scale,100)/100) + '%';
+        st.ui.pat.textContent = 'Reset';
         return;
       }
-      uiRefs[def.id].connectBtn.disabled = true;
-      instance.connect(setStatus).then(function(){
-        uiRefs[def.id].badge.textContent = '已連線';
-        uiRefs[def.id].badge.className = 'badge on';
-        uiRefs[def.id].enable.disabled = false;
-        uiRefs[def.id].testBtn.disabled = false;
-        uiRefs[def.id].disconnectBtn.disabled = false;
-        uiRefs[def.id].connectBtn.disabled = true;
-        refreshStartButtonAvailability();
-      }).catch(function(){
-        uiRefs[def.id].badge.textContent = '連線失敗';
-        uiRefs[def.id].badge.className = 'badge err';
-        uiRefs[def.id].connectBtn.disabled = false;
-      });
-    });
-
-    uiRefs[def.id].disconnectBtn.addEventListener('click', function(){
-      instance.disconnect();
-      uiRefs[def.id].badge.textContent = '未連線';
-      uiRefs[def.id].badge.className = 'badge off';
-      uiRefs[def.id].enable.checked = false;
-      uiRefs[def.id].enable.disabled = true;
-      uiRefs[def.id].testBtn.disabled = true;
-      uiRefs[def.id].disconnectBtn.disabled = true;
-      uiRefs[def.id].connectBtn.disabled = false;
-      setStatus('已手動中斷連線', '');
-      refreshStartButtonAvailability();
-    });
-
-    uiRefs[def.id].testBtn.addEventListener('click', function(){
-      instance.testPulse(3);
-    });
-
-    uiRefs[def.id].enable.addEventListener('click', function(){
-      refreshStartButtonAvailability();
-    });
-
-    uiRefs[def.id].rawBtn.addEventListener('click', function(){
-      var v = uiRefs[def.id].rawInput.value.trim();
-      if (!v) return;
-      if (def.type === 'lovense') {
-        instance.writeAscii(v.endsWith(';') ? v : v + ';');
-      } else {
-        var num = parseInt(v, 10);
-        if (!isNaN(num)) {
-          instance.startMotor().then(function(){ instance.writeValue(clamp(num, 0, 100)); });
-        }
-      }
-      log(def.label + '：手動送出 ' + v);
-    });
-  });
-
-  function refreshStartButtonAvailability(){
-    var anyReady = DEVICE_DEFS.some(function(def){
-      return instances[def.id].connected && uiRefs[def.id].enable.checked;
-    });
-    $('startBtn').disabled = !anyReady || gameRunning;
-  }
-
-  // =========================================================
-  // 遊戲邏輯（多裝置、各自隨機 pattern，共用強度節奏）
-  // =========================================================
-  var START_STRENGTH = 20, STEP = 5, STEP_MS = 1000, PATTERN_MS = 5000, MAX_STRENGTH = 100;
-  var TICK_MS = 250, RESET_DURATION_MS = 1000;
-
-  var gameRunning = false;
-  var resetting = false;
-  var escalationStart = null;
-  var tickTimer = null, patternRerollTimer = null, elapsedTimer = null;
-  var resetTimeout = null;
-  var wakeLockObj = null;
-
-  function activeDevices(){
-    return DEVICE_DEFS
-      .map(function(def){ return { def: def, inst: instances[def.id], ui: uiRefs[def.id] }; })
-      .filter(function(d){ return d.inst.connected && d.ui.enable.checked; });
-  }
-
-  function requestWakeLock(){
-    if ('wakeLock' in navigator) {
-      navigator.wakeLock.request('screen').then(function(w){ wakeLockObj = w; }).catch(function(){});
+      beginRamp(st, now);   // back to the game's opening state
     }
+
+    // --- pattern re-roll ---
+    if (now >= st.patternChangeAt) rollPattern(st, now);
+
+    // --- base ramp: start% + step% per second, capped ---
+    var start = num(st.ui.startPct, 20);
+    var step  = num(st.ui.stepPct, 5);
+    var maxP  = num(st.ui.maxPct, 100);
+    var secs  = Math.floor((now - st.rampStart) / 1000);
+    var base  = clamp(start + step * secs, 0, maxP);
+
+    // --- pattern shaping + per-device scale ---
+    var t = (now - st.patternStart) / 1000;
+    var shaped = st.pattern.calc(t, base);
+    var out = clamp(shaped * num(st.ui.scale, 100) / 100, 0, maxP);
+
+    sendIntensity(st, out);
+    st.ui.bar.style.width = clamp(out,0,100) + '%';
+    st.ui.now.textContent = Math.round(out) + '%';
+    st.ui.pat.textContent = st.pattern.name;
+  });
+}
+
+function updateGlobalUi(){
+  if (!sessionRunning){ $('gElapsed').textContent = '00:00'; return; }
+  var sec = Math.floor((Date.now() - sessionStart)/1000);
+  $('gElapsed').textContent = pad2(Math.floor(sec/60)) + ':' + pad2(sec%60);
+  var running = Object.keys(devs).map(function(k){ return devs[k]; }).filter(function(s){ return s.running; });
+  $('gActive').textContent = running.length;
+  if (running.length){
+    var st = running[0];
+    var base = clamp(num(st.ui.startPct,20) + num(st.ui.stepPct,5)*Math.floor((Date.now()-st.rampStart)/1000), 0, num(st.ui.maxPct,100));
+    $('gBase').textContent = Math.round(base) + '%';
   }
-  function releaseWakeLock(){
-    if (wakeLockObj) { wakeLockObj.release().catch(function(){}); wakeLockObj = null; }
-  }
+}
 
-  function currentBase(){
-    if (!escalationStart) return START_STRENGTH;
-    var elapsedSec = (Date.now() - escalationStart) / 1000;
-    var steps = Math.floor(elapsedSec / (STEP_MS / 1000));
-    return Math.min(MAX_STRENGTH, START_STRENGTH + steps * STEP);
-  }
+function refreshGlobalButtons(){
+  var any = activeStates().length > 0;
+  $('startAll').disabled = !any || sessionRunning;
+  $('stopAll').disabled  = !sessionRunning;
+  $('resetAll').disabled = !sessionRunning;
+  $('gActive').textContent = sessionRunning
+    ? Object.keys(devs).filter(function(k){ return devs[k].running; }).length
+    : activeStates().length;
+}
 
-  function rerollPatterns(){
-    activeDevices().forEach(function(d){
-      d.inst.pattern = pickRandomPattern(d.inst.pattern.name);
-      d.inst.patternStartTime = Date.now();
-    });
-    log('全裝置重新隨機選擇 pattern');
-  }
+/* ================= wake lock ================= */
+var wakeLock = null;
+function requestWakeLock(){
+  if (!navigator.wakeLock || wakeLock) return;
+  navigator.wakeLock.request('screen').then(function(wl){
+    wakeLock = wl;
+    wl.addEventListener('release', function(){ wakeLock = null; });
+    log('Screen wake lock acquired.');
+  }).catch(function(){});
+}
 
-  function tick(){
-    var base = currentBase();
-    $('baseDisplay').textContent = (resetting ? $('resetStrength').value : base) + '%';
-    $('strengthBar').style.width = (resetting ? $('resetStrength').value : base) + '%';
+/* ================= UI build ================= */
+function buildDevice(def){
+  var st = makeState(def);
+  devs[def.id] = st;
 
-    activeDevices().forEach(function(d){
-      var pct;
-      if (resetting) {
-        pct = clamp(parseInt($('resetStrength').value, 10) || 0, 0, 100);
-      } else {
-        var t = (Date.now() - d.inst.patternStartTime) / 1000;
-        pct = clamp(d.inst.pattern.calc(t, base), 0, 100);
-      }
-      d.inst.applyPercent(pct);
-      d.ui.patDisplay.textContent = resetting ? '穩定（重置中）' : d.inst.pattern.name;
-      d.ui.pctDisplay.textContent = Math.round(pct) + '%';
-    });
-  }
+  var sec = document.createElement('section');
+  var isThrust = def.motion === 'thrust';
+  var isLov = def.brand === 'lovense';
 
-  function updateElapsed(){
-    if (!escalationStart) return;
-    var sec = Math.floor((Date.now() - escalationStart) / 1000);
-    var mm = String(Math.floor(sec / 60)).padStart(2, '0');
-    var ss = String(sec % 60).padStart(2, '0');
-    $('timeDisplay').textContent = mm + ':' + ss;
-  }
+  sec.innerHTML =
+    '<div class="dev-head">' +
+      '<div class="title"><div class="n">' + def.name + '</div>' +
+      '<div class="t">' + def.type + (isLov ? ' · Lovense ASCII' : ' · Satisfyer raw bytes') + '</div></div>' +
+      '<span class="badge">Disconnected</span>' +
+    '</div>' +
 
-  function beginEscalation(){
-    escalationStart = Date.now();
-    activeDevices().forEach(function(d){
-      d.inst.pattern = pickRandomPattern();
-      d.inst.patternStartTime = Date.now();
-      d.inst.lastSentValue = null;
-      if (d.inst instanceof SatisfyerDevice) d.inst.startMotor();
-    });
-    if (patternRerollTimer) clearInterval(patternRerollTimer);
-    patternRerollTimer = setInterval(rerollPatterns, PATTERN_MS);
-  }
+    '<div class="switch" style="margin-bottom:9px;">' +
+      '<input type="checkbox" checked data-r="enabled"><span>Enabled — include this device in the game</span>' +
+    '</div>' +
 
-  function startGame(){
-    var devs = activeDevices();
-    if (!devs.length) { log('沒有已連線且啟用的裝置，無法開始'); return; }
-    gameRunning = true;
-    resetting = false;
-    requestWakeLock();
-    beginEscalation();
+    '<div class="btn-row">' +
+      '<button class="b-primary" data-r="connectBtn">Connect</button>' +
+      '<button class="b-ghost" data-r="disconnectBtn" disabled>Disconnect</button>' +
+    '</div>' +
 
-    $('startBtn').disabled = true;
-    $('stopBtn').disabled = false;
-    $('resetBtn').disabled = false;
+    (def.brand === 'satisfyer'
+      ? '<div class="switch" style="margin-top:9px;">' +
+          '<input type="checkbox" data-r="sfScanAll"><span>Scan all BLE devices (use if "SF Signet Ring" is not listed — the name may not be advertised)</span>' +
+        '</div>'
+      : '') +
 
-    log('遊戲開始，已啟用裝置：' + devs.map(function(d){ return d.def.label; }).join('、'));
+    '<div class="grid2" style="margin-top:11px;">' +
+      '<div class="stat"><div class="k">Output</div><div class="v" data-r="now">—</div></div>' +
+      '<div class="stat"><div class="k">Pattern</div><div class="v" data-r="pat" style="font-size:14px;">—</div></div>' +
+    '</div>' +
+    '<div class="bar"><i data-r="bar"></i></div>' +
 
-    tickTimer = setInterval(tick, TICK_MS);
-    elapsedTimer = setInterval(updateElapsed, 250);
-    tick();
-  }
+    '<details open>' +
+      '<summary>Settings</summary>' +
+      '<div class="body">' +
 
-  function stopGame(){
-    gameRunning = false;
-    resetting = false;
-    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
-    if (patternRerollTimer) { clearInterval(patternRerollTimer); patternRerollTimer = null; }
-    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
-    if (resetTimeout) { clearTimeout(resetTimeout); resetTimeout = null; }
-    releaseWakeLock();
+        '<div class="fieldset-title">Ramp</div>' +
+        '<div class="grid3">' +
+          '<div><label>Start %</label><input type="number" data-r="startPct" value="20" min="0" max="100" step="1"></div>' +
+          '<div><label>+ % / sec</label><input type="number" data-r="stepPct" value="5" min="0" max="100" step="1"></div>' +
+          '<div><label>Max %</label><input type="number" data-r="maxPct" value="100" min="0" max="100" step="1"></div>' +
+        '</div>' +
 
-    activeDevices().forEach(function(d){ d.inst.stopMotor(); });
+        '<div class="fieldset-title">Pattern &amp; scale</div>' +
+        '<div class="grid3">' +
+          '<div><label>Re-roll every (s)</label><input type="number" data-r="patInterval" value="5" min="1" max="120" step="1"></div>' +
+          '<div><label>Scale %</label><input type="number" data-r="scale" value="' + def.scale + '" min="1" max="200" step="1"></div>' +
+          '<div><label>Cmd value max</label><input type="number" data-r="valueMax" value="' + def.valueMax + '" min="1" max="255" step="1"' + (isLov ? '' : ' disabled') + '></div>' +
+        '</div>' +
+        (isThrust ? '<p class="hint" style="margin-top:6px;">Scale 50% = thrusting speed runs at half the vibrators\' intensity.</p>' : '') +
 
-    $('startBtn').disabled = false;
-    $('stopBtn').disabled = true;
-    $('resetBtn').disabled = true;
-    $('baseDisplay').textContent = '-';
-    $('strengthBar').style.width = '0%';
-    escalationStart = null;
-    refreshStartButtonAvailability();
+        '<div class="fieldset-title">Reset button</div>' +
+        '<div class="grid2">' +
+          '<div><label>Steady pulse %</label><input type="number" data-r="resetPct" value="20" min="0" max="100" step="1"></div>' +
+          '<div><label>Pulse length (s)</label><input type="number" data-r="resetSec" value="1" min="0.2" max="10" step="0.1"></div>' +
+        '</div>' +
 
-    log('遊戲結束，已停止所有裝置');
-  }
+        '<div class="fieldset-title">Pattern pool</div>' +
+        '<div class="pat-pool" data-r="patPool"></div>' +
 
-  function resetGame(){
-    if (!gameRunning || resetting) return;
-    resetting = true;
-    log('觸發重置：以 ' + $('resetStrength').value + '% 輸出 1 秒穩定 pattern');
-    if (patternRerollTimer) { clearInterval(patternRerollTimer); patternRerollTimer = null; }
-    resetTimeout = setTimeout(function(){
-      resetting = false;
-      beginEscalation();
-      log('重置結束，回到起始狀態（20% 起跳，各自重新隨機 pattern）');
-    }, RESET_DURATION_MS);
-  }
+        (isThrust
+          ? '<div class="fieldset-title">Stroke range</div>' +
+            '<div class="switch" style="margin-bottom:8px;">' +
+              '<input type="checkbox" checked data-r="depthRandom"><span>Randomise stroke start/end on every pattern change</span>' +
+            '</div>' +
+            '<div class="grid2">' +
+              '<div><label>Min position</label><input type="number" data-r="depthMin" value="0" min="0" max="255" step="1"></div>' +
+              '<div><label>Max position</label><input type="number" data-r="depthMax" value="20" min="0" max="255" step="1"></div>' +
+            '</div>'
+          : '') +
 
-  $('startBtn').addEventListener('click', startGame);
-  $('stopBtn').addEventListener('click', stopGame);
-  $('resetBtn').addEventListener('click', resetGame);
+      '</div>' +
+    '</details>' +
 
-  window.addEventListener('beforeunload', function(){
-    activeDevices().forEach(function(d){ d.inst.stopMotor(); });
+    (isLov
+      ? '<details>' +
+          '<summary>Command format' + (isThrust ? ' — unverified, try candidates here' : '') + '</summary>' +
+          '<div class="body">' +
+            '<label>Speed / intensity command</label>' +
+            '<select data-r="cmdSel"></select>' +
+            '<input type="text" data-r="cmdCustom" placeholder="custom, e.g. Thrusting:{v};" style="margin-top:7px; display:none;">' +
+            (isThrust
+              ? '<label style="margin-top:11px;">Stroke-range command</label>' +
+                '<select data-r="depthSel"></select>' +
+                '<input type="text" data-r="depthCustom" placeholder="custom, e.g. DepthRange:{a}:{b};" style="margin-top:7px; display:none;">'
+              : '') +
+            '<p class="hint"><code>{v}</code> = intensity 0..max · <code>{a}</code>/<code>{b}</code> = stroke start/end.</p>' +
+            '<div class="fieldset-title">Raw console</div>' +
+            '<div class="inline">' +
+              '<input type="text" data-r="rawIn" placeholder="DeviceType;">' +
+              '<button class="b-ghost" data-r="rawBtn">Send</button>' +
+            '</div>' +
+            '<p class="hint">Responses appear in the log. Use this to find the real Solace Pro thrusting command, then set it above.</p>' +
+          '</div>' +
+        '</details>'
+      : '<details>' +
+          '<summary>Protocol notes</summary>' +
+          '<div class="body"><p class="hint">' +
+            'Service <code>51361500-…</code> · mode <code>…1501</code> (<code>0x01</code> start / <code>0x07</code> stop) · ' +
+            'value <code>…1502</code>, 4 bytes <b>big-endian</b> <code>[0,0,0,v]</code>, v = 0–100.<br>' +
+            'Little-endian vibrates but ignores the level — if intensity feels flat or grainy, that is the cause.' +
+          '</p></div>' +
+        '</details>');
+
+  $('devices').appendChild(sec);
+
+  // wire refs
+  sec.querySelectorAll('[data-r]').forEach(function(el){ st.ui[el.getAttribute('data-r')] = el; });
+  st.ui.badge = sec.querySelector('.badge');
+
+  // pattern pool
+  st.ui.patBoxes = [];
+  PATTERNS.forEach(function(p){
+    var l = document.createElement('label');
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = p.id; cb.checked = true;
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode(p.name));
+    st.ui.patPool.appendChild(l);
+    st.ui.patBoxes.push(cb);
   });
 
-  log('頁面已載入。請依序連線各裝置、勾選啟用，再按「開始遊戲」。');
+  // command selects
+  if (isLov){
+    def.cmdOptions.concat(['__custom__']).forEach(function(o){
+      var op = document.createElement('option');
+      op.value = o; op.textContent = (o === '__custom__' ? 'Custom…' : o);
+      st.ui.cmdSel.appendChild(op);
+    });
+    st.ui.cmdSel.value = def.cmdDefault;
+    st.ui.cmdSel.addEventListener('change', function(){
+      st.ui.cmdCustom.style.display = (this.value === '__custom__') ? 'block' : 'none';
+    });
+    if (isThrust){
+      def.depthOptions.concat(['__custom__']).forEach(function(o){
+        var op = document.createElement('option');
+        op.value = o; op.textContent = (o === '__custom__' ? 'Custom…' : o);
+        st.ui.depthSel.appendChild(op);
+      });
+      st.ui.depthSel.value = def.depthDefault;
+      st.ui.depthSel.addEventListener('change', function(){
+        st.ui.depthCustom.style.display = (this.value === '__custom__') ? 'block' : 'none';
+      });
+    }
+    st.ui.rawBtn.addEventListener('click', function(){
+      var v = st.ui.rawIn.value.trim();
+      if (v) sendRaw(st, v);
+    });
+    st.ui.rawIn.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ var v = this.value.trim(); if (v) sendRaw(st, v); }
+    });
+  }
+
+  st.ui.enabled.addEventListener('change', function(){
+    st.enabled = this.checked;
+    if (!st.enabled && st.running) stopDevice(st);
+    if (st.enabled && sessionRunning && st.connected) startDevice(st);
+    refreshGlobalButtons();
+  });
+  st.ui.connectBtn.addEventListener('click', function(){ connect(st); });
+  st.ui.disconnectBtn.addEventListener('click', function(){ disconnect(st); });
+
+  return st;
+}
+
+/* ================= boot ================= */
+DEFS.forEach(buildDevice);
+
+$('startAll').addEventListener('click', startAll);
+$('stopAll').addEventListener('click', stopAll);
+$('resetAll').addEventListener('click', resetAll);
+$('clearLog').addEventListener('click', function(){ logEl.textContent = ''; });
+$('wakeBtn').addEventListener('click', requestWakeLock);
+
+window.addEventListener('beforeunload', function(){
+  Object.keys(devs).forEach(function(k){ hardStop(devs[k]); });
+});
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible') requestWakeLock();
+});
+
+refreshGlobalButtons();
+log('Ready. Connect each toy you want to use, then press Start All.');
+if (!navigator.bluetooth) log('WARNING: Web Bluetooth unavailable — needs Chrome on Android over HTTPS.');
 })();
 </script>
 </body>
