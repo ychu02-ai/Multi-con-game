@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多裝置直連 BLE 遊戲</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#14141c;
+    --panel:#1e1e2a;
+    --panel2:#252534;
+    --border:#33334a;
+    --text:#e8e8f0;
+    --muted:#9494ac;
+    --accent:#ff4d8d;
+    --accent2:#7c5cff;
+    --ok:#3ddc97;
+    --warn:#ffb648;
+    --danger:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(160deg,#14141c,#1a1626);
+    color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:28px 14px 60px;
+  }
+  .container{ width:100%; max-width:640px; }
+  h1{ font-size:19px; margin:0 0 4px; letter-spacing:.4px; }
+  .subtitle{ color:var(--muted); font-size:12.5px; margin:0 0 20px; line-height:1.6; }
+  section{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  section h2{
+    font-size:13.5px; margin:0 0 10px; color:var(--muted); font-weight:600; letter-spacing:.4px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .badge{
+    font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border);
+    color:var(--muted); font-weight:500;
+  }
+  .badge.on{ color:var(--ok); border-color:var(--ok); }
+  .badge.off{ color:var(--muted); }
+  .badge.err{ color:var(--danger); border-color:var(--danger); }
+  label{ display:block; font-size:11.5px; color:var(--muted); margin:0 0 4px; }
+  .row{ display:flex; gap:8px; }
+  .row > div{ flex:1; }
+  input[type=text], input[type=number], select{
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:8px 9px; border-radius:9px; font-size:13.5px; outline:none; font-family:inherit;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus{ border-color:var(--accent2); }
+  input::placeholder{ color:#6a6a82; }
+  input[type=checkbox]{ width:17px; height:17px; accent-color:var(--accent2); }
+  .checkrow{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+  button{
+    border:none; border-radius:10px; padding:9px 14px; font-size:13.5px; font-weight:600;
+    cursor:pointer; color:#fff; transition:opacity .15s, transform .05s, filter .15s; font-family:inherit;
+  }
+  button:active{ transform:scale(.97); }
+  button:disabled{ opacity:.35; cursor:not-allowed; }
+  .btn-connect{ background:var(--accent2); }
+  .btn-test{ background:var(--panel2); border:1px solid var(--border) !important; color:var(--text); }
+  .btn-disconnect{ background:#3a3a4d; }
+  .btn-start{ background:var(--ok); color:#0a1a12; }
+  .btn-stop{ background:var(--danger); }
+  .btn-reset{ background:var(--warn); color:#2a1c00; }
+  .btn-send{ background:var(--accent2); padding:8px 12px; font-size:12.5px; }
+  .device-card{
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;
+  }
+  .device-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:8px; flex-wrap:wrap; }
+  .device-name{ font-size:14px; font-weight:700; }
+  .device-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .status-line{
+    font-size:12px; color:var(--muted); background:#14141c; border:1px solid var(--border);
+    border-radius:8px; padding:7px 9px; margin-bottom:8px; white-space:pre-wrap; word-break:break-word;
+  }
+  .status-line.ok{ color:var(--ok); border-color:var(--ok); }
+  .status-line.err{ color:var(--danger); border-color:var(--danger); }
+  .live-stat{
+    display:flex; gap:10px; font-size:12px; color:var(--muted); margin-bottom:8px;
+  }
+  .live-stat b{ color:var(--text); }
+  details{ margin-top:6px; }
+  details summary{ cursor:pointer; color:var(--muted); font-size:12px; padding:4px 0; }
+  .adv-body{ padding-top:8px; display:flex; flex-direction:column; gap:8px; }
+  .buttons{ display:flex; gap:10px; }
+  .buttons > button{ flex:1; }
+  .stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .stat{ background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .stat .label{ font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .stat .value{ font-size:18px; font-weight:700; }
+  #strengthBarWrap{
+    background:var(--panel2); border:1px solid var(--border); border-radius:999px; height:14px;
+    overflow:hidden; margin-bottom:14px;
+  }
+  #strengthBar{
+    height:100%; width:0%; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .2s linear;
+  }
+  #log{
+    background:#0e0e15; border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+    height:160px; overflow-y:auto; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11.5px; color:#9adfc0; white-space:pre-wrap; word-break:break-all;
+  }
+  .hint{ font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6; }
+  .hint.warn{ color:var(--warn); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>多裝置直連 BLE 遊戲</h1>
+  <p class="subtitle">直接以 Web Bluetooth 連線 Lovense Gush / Lovense Solace Pro / Satisfyer Signet Ring，不透過官方 App。每個裝置各自連線、各自啟用開關、各自進階設定；連好之後用下方單一按鈕統一開始 / 結束 / 重置。</p>
+
+  <section>
+    <h2>裝置</h2>
+    <div id="deviceList"></div>
+    <p class="hint warn">⚠ 開機順序：請先按裝置卡片的「連線」開始掃描，掃描視窗跳出後再打開玩具電源，成功率最高（細節見專案筆記 §2.5）。</p>
+    <p class="hint">Satisfyer 裝置廣播不含名稱，選擇器會列出附近所有藍牙裝置；若系統藍牙設定裡已經顯示過該裝置（例如「SF Signet Ring」），建議先在系統藍牙設定中 Forget 掉它，避免跟本頁面的 GATT 連線互搶，再回來按「連線」。</p>
+  </section>
+
+  <section id="gamePanel">
+    <h2>遊戲控制</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">已進行時間</div><div class="value" id="timeDisplay">00:00</div></div>
+      <div class="stat"><div class="label">目前基礎強度</div><div class="value" id="baseDisplay">-</div></div>
+    </div>
+    <div id="strengthBarWrap"><div id="strengthBar"></div></div>
+
+    <div class="row" style="margin-bottom:10px;">
+      <div>
+        <label>重置後穩定強度 %（重置按鈕觸發時使用）</label>
+        <input type="number" id="resetStrength" value="50" min="0" max="100">
+      </div>
+    </div>
+
+    <div class="buttons" style="margin-bottom:8px;">
+      <button id="startBtn" class="btn-start" disabled>開始遊戲</button>
+      <button id="stopBtn" class="btn-stop" disabled>結束遊戲</button>
+    </div>
+    <button id="resetBtn" class="btn-reset" style="width:100%;" disabled>🔄 重置（1 秒穩定 → 回到起始狀態）</button>
+
+    <p class="hint">
+      開始後，每個「已啟用且已連線」的裝置各自隨機選一個 pattern，強度從 20% 起跳；之後每 1 秒基礎強度 +5%（上限 100%），每 5 秒各裝置各自重新隨機選一個 pattern（互不同步）。按下「重置」會讓所有裝置以你設定的強度輸出 1 秒穩定 pattern，結束後強度歸 20%、各自重新隨機選 pattern，並重新開始升級節奏。
+    </p>
+  </section>
+
+  <section id="logPanelWrap">
+    <h2>連線 / 指令紀錄</h2>
+    <div id="log"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+
+  // =========================================================
+  // 共用工具
+  // =========================================================
+  function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+  function pseudoRandom(seed){
+    var x = Math.sin(seed * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  function logEl(){ return $('log'); }
+  function log(msg){
+    var time = new Date().toLocaleTimeString('zh-TW', { hour12:false });
+    var el = logEl();
+    el.textContent += '[' + time + '] ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+  function raceTimeout(promise, ms, label){
+    return new Promise(function(resolve, reject){
+      var t = setTimeout(function(){ reject(new Error((label||'操作') + '逾時（' + (ms/1000) + ' 秒）')); }, ms);
+      promise.then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
+    });
+  }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // Lovense gen3 service UUID 推導：前兩碼是機型代碼 ASCII hex，不足補 '0'
+  function codeToServiceUuid(code, group){
+    var c = (String(code).toUpperCase() + '0').slice(0, 2);
+    var hx = c.charCodeAt(0).toString(16) + c.charCodeAt(1).toString(16);
+    return hx + '0001-' + (group || '0023') + '-4bd4-bbd5-a6920e4c5653';
+  }
+  function lovenseUuidSet(code){
+    var svc = codeToServiceUuid(code);
+    return {
+      service: svc,
+      tx: svc.replace('0001-', '0002-'),
+      rx: svc.replace('0001-', '0003-')
+    };
+  }
+  // 已知機型代碼（用來把 optionalServices 灌滿，未來換裝置也掃得到）
+  var KNOWN_LOVENSE_CODES = ['A','B','C','D','H','L','N','O','P','R','S','T','U','W','X','Z',
+    'OC','EA','EB','ED','EZ','PA','PB','BA'];
+  function allLovenseOptionalServices(){
+    var out = [];
+    KNOWN_LOVENSE_CODES.forEach(function(code){
+      var u = lovenseUuidSet(code);
+      out.push(u.service);
+    });
+    return out;
+  }
+
+  var SATISFYER_SERVICE = '51361500-c5e7-47c7-8a6e-47ebc99d80e8';
+  var SATISFYER_MODE_CHAR = '51361501-c5e7-47c7-8a6e-47ebc99d80e8';
+  var SATISFYER_VALUE_CHAR = '51361502-c5e7-47c7-8a6e-47ebc99d80e8';
+
+  // =========================================================
+  // Pattern 定義（沿用單裝置版本的五種）
+  // =========================================================
+  var PATTERNS = [
+    { name: '穩定', calc: function(t, base){ return base; } },
+    { name: '脈衝', calc: function(t, base){
+        var cyc = t % 1.0;
+        return cyc < 0.6 ? base : base * 0.3;
+      } },
+    { name: '波浪', calc: function(t, base){
+        var wave = Math.sin(2 * Math.PI * t / 2.0);
+        return clamp(base * 0.7 + base * 0.3 * wave, 0, 100);
+      } },
+    { name: '尖峰', calc: function(t, base){
+        var cyc = t % 1.5;
+        return cyc < 0.2 ? 100 : base * 0.5;
+      } },
+    { name: '隨機', calc: function(t, base){
+        var seed = Math.floor(t / 0.4);
+        var r = pseudoRandom(seed);
+        return clamp(base + (r - 0.5) * 30, 0, 100);
+      } }
+  ];
+  function pickRandomPattern(excludeName){
+    var pool = PATTERNS;
+    if (excludeName && PATTERNS.length > 1) {
+      pool = PATTERNS.filter(function(p){ return p.name !== excludeName; });
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // =========================================================
+  // 裝置基底類別
+  // =========================================================
+  function BaseDevice(cfg){
+    this.cfg = cfg;              // 靜態設定
+    this.device = null;
+    this.server = null;
+    this.connected = false;
+    this.enabled = false;
+    this.queue = Promise.resolve();
+    this.lastSentValue = null;
+    this.pattern = PATTERNS[0];
+    this.patternStartTime = Date.now();
+    this.wakeLock = null;
+  }
+  BaseDevice.prototype.enqueue = function(fn){
+    var self = this;
+    this.queue = this.queue.then(fn, fn);
+    return this.queue;
+  };
+  BaseDevice.prototype.disconnect = function(){
+    if (this.device && this.device.gatt && this.device.gatt.connected) {
+      try { this.device.gatt.disconnect(); } catch(e){}
+    }
+    this.connected = false;
+    this.server = null;
+  };
+
+  // ---- Lovense（ASCII 指令）----
+  function LovenseDevice(cfg){ BaseDevice.call(this, cfg); this.txChar = null; this.rxChar = null; }
+  LovenseDevice.prototype = Object.create(BaseDevice.prototype);
+
+  LovenseDevice.prototype.getUuids = function(){
+    var codeOverride = this.cfg.getCode ? this.cfg.getCode() : this.cfg.code;
+    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
+    if (manual && manual.service) return manual;
+    return lovenseUuidSet(codeOverride);
+  };
+
+  LovenseDevice.prototype.connect = function(onStatus){
+    var self = this;
+    var uuids = this.getUuids();
+    var extraServices = allLovenseOptionalServices().concat([uuids.service]);
+    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
+    if (manual && manual.service) extraServices.push(manual.service);
+
+    onStatus('掃描中…請在跳出的選擇器出現後再開啟玩具電源', '');
+    return navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'LVS' }, { namePrefix: 'LOVE' }],
+      optionalServices: extraServices
+    }).then(function(device){
+      self.device = device;
+      log(self.cfg.label + '：已選擇裝置 ' + (device.name || '(未知名稱)'));
+      device.addEventListener('gattserverdisconnected', function(){
+        self.connected = false;
+        onStatus('已斷線', 'err');
+        log(self.cfg.label + '：GATT 已斷線');
+      });
+      onStatus('連線中…', '');
+      return raceTimeout(device.gatt.connect(), 12000, 'GATT 連線');
+    }).then(function(server){
+      self.server = server;
+      return sleep(600);
+    }).then(function(){
+      return self.discoverCharacteristics(uuids);
+    }).then(function(){
+      return self.rxChar ? self.rxChar.startNotifications().catch(function(){}) : null;
+    }).then(function(){
+      return sleep(350);
+    }).then(function(){
+      self.connected = true;
+      onStatus('已連線（Service ' + (self._foundService || uuids.service).slice(0,8) + '…）', 'ok');
+      log(self.cfg.label + '：連線成功');
+    }).catch(function(err){
+      self.connected = false;
+      onStatus('連線失敗：' + err.message, 'err');
+      log(self.cfg.label + '：連線失敗 - ' + err.message);
+      throw err;
+    });
+  };
+
+  LovenseDevice.prototype.discoverCharacteristics = function(uuids){
+    var self = this;
+    return self.server.getPrimaryService(uuids.service).then(function(service){
+      self._foundService = uuids.service;
+      return Promise.all([
+        service.getCharacteristic(uuids.tx).catch(function(){ return null; }),
+        service.getCharacteristic(uuids.rx).catch(function(){ return null; })
+      ]);
+    }).then(function(res){
+      if (res[0]) { self.txChar = res[0]; self.rxChar = res[1]; return; }
+      // 已知 UUID 找不到 tx，退回全服務掃描找第一個可寫入 / 可通知的 characteristic
+      log(self.cfg.label + '：已知 UUID 找不到特徵值，改用全掃描辨識 TX/RX');
+      return self.server.getPrimaryServices().then(function(services){
+        var chain = Promise.resolve();
+        services.forEach(function(svc){
+          chain = chain.then(function(){
+            return svc.getCharacteristics().then(function(chars){
+              chars.forEach(function(c){
+                if (!self.txChar && (c.properties.write || c.properties.writeWithoutResponse)) {
+                  self.txChar = c; self._foundService = svc.uuid;
+                }
+                if (!self.rxChar && (c.properties.notify || c.properties.indicate)) {
+                  self.rxChar = c;
+                }
+              });
+            }).catch(function(){});
+          });
+        });
+        return chain;
+      });
+    }).then(function(){
+      if (!self.txChar) throw new Error('找不到可寫入的 TX 特徵值，請確認裝置或用手動 UUID 覆寫');
+    });
+  };
+
+  LovenseDevice.prototype.writeAscii = function(text){
+    var self = this;
+    var payload = new TextEncoder().encode(text);
+    return self.enqueue(function(){
+      if (!self.txChar) return Promise.resolve();
+      var p = self.txChar.writeValueWithoutResponse
+        ? self.txChar.writeValueWithoutResponse(payload)
+        : self.txChar.writeValue(payload);
+      return p.catch(function(){
+        return self.txChar.writeValue ? self.txChar.writeValue(payload) : Promise.resolve();
+      }).catch(function(err){
+        log(self.cfg.label + '：寫入失敗 - ' + err.message);
+      });
+    });
+  };
+
+  LovenseDevice.prototype.applyPercent = function(pct){
+    var lv = Math.max(0, Math.min(20, Math.round(pct / 100 * 20)));
+    if (lv === this.lastSentValue) return;
+    this.lastSentValue = lv;
+    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
+    this.writeAscii(cmd + ':' + lv + ';');
+  };
+
+  LovenseDevice.prototype.stopMotor = function(){
+    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
+    this.lastSentValue = null;
+    return this.writeAscii(cmd + ':0;');
+  };
+
+  LovenseDevice.prototype.testPulse = function(sec){
+    var cmd = this.cfg.getCmdName ? this.cfg.getCmdName() : this.cfg.cmdName;
+    var self = this;
+    this.writeAscii(cmd + ':10;');
+    log(self.cfg.label + '：測試輸出中（' + cmd + ':10;）');
+    setTimeout(function(){ self.writeAscii(cmd + ':0;'); log(self.cfg.label + '：測試結束'); }, (sec||3)*1000);
+  };
+
+  // ---- Satisfyer（binary 指令）----
+  function SatisfyerDevice(cfg){ BaseDevice.call(this, cfg); this.modeChar = null; this.valueChar = null; }
+  SatisfyerDevice.prototype = Object.create(BaseDevice.prototype);
+
+  SatisfyerDevice.prototype.getUuids = function(){
+    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
+    if (manual && manual.service) return manual;
+    return { service: SATISFYER_SERVICE, mode: SATISFYER_MODE_CHAR, value: SATISFYER_VALUE_CHAR };
+  };
+
+  SatisfyerDevice.prototype.connect = function(onStatus){
+    var self = this;
+    var uuids = this.getUuids();
+    var manual = this.cfg.getManualUuids ? this.cfg.getManualUuids() : null;
+    var extraServices = [SATISFYER_SERVICE];
+    if (manual && manual.service) extraServices.push(manual.service);
+
+    onStatus('開啟裝置選擇器（Satisfyer 不廣播名稱，請自行從清單辨認）…', '');
+    return navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: extraServices
+    }).then(function(device){
+      self.device = device;
+      log(self.cfg.label + '：已選擇裝置 ' + (device.name || '(未知名稱)'));
+      device.addEventListener('gattserverdisconnected', function(){
+        self.connected = false;
+        onStatus('已斷線', 'err');
+        log(self.cfg.label + '：GATT 已斷線');
+      });
+      onStatus('連線中…', '');
+      return raceTimeout(device.gatt.connect(), 12000, 'GATT 連線');
+    }).then(function(server){
+      self.server = server;
+      return sleep(600);
+    }).then(function(){
+      return self.server.getPrimaryService(uuids.service);
+    }).then(function(service){
+      return Promise.all([
+        service.getCharacteristic(uuids.mode),
+        service.getCharacteristic(uuids.value)
+      ]);
+    }).then(function(res){
+      self.modeChar = res[0];
+      self.valueChar = res[1];
+      return sleep(350);
+    }).then(function(){
+      self.connected = true;
+      onStatus('已連線', 'ok');
+      log(self.cfg.label + '：連線成功');
+    }).catch(function(err){
+      self.connected = false;
+      onStatus('連線失敗：' + err.message, 'err');
+      log(self.cfg.label + '：連線失敗 - ' + err.message);
+      throw err;
+    });
+  };
+
+  SatisfyerDevice.prototype.writeMode = function(val){
+    var self = this;
+    return self.enqueue(function(){
+      if (!self.modeChar) return Promise.resolve();
+      var payload = new Uint8Array([val]);
+      var p = self.modeChar.writeValueWithoutResponse
+        ? self.modeChar.writeValueWithoutResponse(payload)
+        : self.modeChar.writeValue(payload);
+      return p.catch(function(){
+        return self.modeChar.writeValue ? self.modeChar.writeValue(payload) : Promise.resolve();
+      }).catch(function(err){ log(self.cfg.label + '：mode 寫入失敗 - ' + err.message); });
+    });
+  };
+
+  SatisfyerDevice.prototype.writeValue = function(intVal){
+    var self = this;
+    return self.enqueue(function(){
+      if (!self.valueChar) return Promise.resolve();
+      var payload = new Uint8Array([intVal & 0xff, 0, 0, 0]);
+      var p = self.valueChar.writeValueWithoutResponse
+        ? self.valueChar.writeValueWithoutResponse(payload)
+        : self.valueChar.writeValue(payload);
+      return p.catch(function(){
+        return self.valueChar.writeValue ? self.valueChar.writeValue(payload) : Promise.resolve();
+      }).catch(function(err){ log(self.cfg.label + '：value 寫入失敗 - ' + err.message); });
+    });
+  };
+
+  SatisfyerDevice.prototype.startMotor = function(){
+    this.lastSentValue = null;
+    return this.writeMode(0x01);
+  };
+
+  SatisfyerDevice.prototype.applyPercent = function(pct){
+    var v = Math.max(0, Math.min(100, Math.round(pct)));
+    if (v === this.lastSentValue) return;
+    this.lastSentValue = v;
+    this.writeValue(v);
+  };
+
+  SatisfyerDevice.prototype.stopMotor = function(){
+    var self = this;
+    self.lastSentValue = null;
+    return self.writeValue(0).then(function(){ return self.writeMode(0x07); });
+  };
+
+  SatisfyerDevice.prototype.testPulse = function(sec){
+    var self = this;
+    self.startMotor().then(function(){
+      self.writeValue(30);
+      log(self.cfg.label + '：測試輸出中（value=30）');
+      setTimeout(function(){ self.stopMotor(); log(self.cfg.label + '：測試結束'); }, (sec||3)*1000);
+    });
+  };
+
+  // =========================================================
+  // 裝置設定清單
+  // =========================================================
+  var DEVICE_DEFS = [
+    {
+      id: 'gush', label: 'Lovense Gush', type: 'lovense', code: 'ED', cmdName: 'Vibrate',
+      hint: '確認可行：Service 45440001-…（TX …0002 / RX …0003）'
+    },
+    {
+      id: 'solace', label: 'Lovense Solace Pro', type: 'lovense', code: 'BA', cmdName: 'Thrusting',
+      cmdOptions: ['Thrusting', 'Depth', 'FSetup', 'Position'],
+      hint: '⚠ 抽插協定未經實測驗證，若 Thrusting 無反應，改用下方指令下拉選單試 Depth / FSetup / Position'
+    },
+    {
+      id: 'satisfyer', label: 'Satisfyer Signet Ring', type: 'satisfyer',
+      hint: 'Service 51361500-…（mode …1501 / value …1502），單馬達'
+    }
+  ];
+
+  var instances = {}; // id -> device instance
+  var uiRefs = {};    // id -> dom refs
+
+  function buildDeviceCard(def){
+    var card = document.createElement('div');
+    card.className = 'device-card';
+
+    var advId = 'adv_' + def.id;
+    var cmdSelectHtml = '';
+    if (def.cmdOptions) {
+      cmdSelectHtml = '<div><label>指令名稱</label><select id="cmd_' + def.id + '">' +
+        def.cmdOptions.map(function(c){ return '<option value="' + c + '"' + (c === def.cmdName ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
+        '</select></div>';
+    }
+
+    card.innerHTML =
+      '<div class="device-head">' +
+        '<div class="device-name">' + def.label + '</div>' +
+        '<span class="badge off" id="badge_' + def.id + '">未連線</span>' +
+      '</div>' +
+      '<div class="status-line" id="status_' + def.id + '">尚未連線</div>' +
+      '<div class="checkrow" style="margin-bottom:8px;">' +
+        '<input type="checkbox" id="enable_' + def.id + '" disabled>' +
+        '<label style="margin:0;" for="enable_' + def.id + '">啟用（納入統一開始 / 停止 / 重置）</label>' +
+      '</div>' +
+      '<div class="device-actions">' +
+        '<button class="btn-connect" id="connect_' + def.id + '">連線</button>' +
+        '<button class="btn-test" id="test_' + def.id + '" disabled>測試 3 秒</button>' +
+        '<button class="btn-disconnect" id="disconnect_' + def.id + '" disabled>中斷</button>' +
+      '</div>' +
+      '<div class="live-stat"><span>Pattern：<b id="pat_' + def.id + '">-</b></span><span>輸出：<b id="pct_' + def.id + '">-</b></span></div>' +
+      '<details id="' + advId + '">' +
+        '<summary>進階設定（手動 UUID 覆寫' + (def.cmdOptions ? ' / 指令名稱' : '') + '）</summary>' +
+        '<div class="adv-body">' +
+          cmdSelectHtml +
+          '<div><label>手動 Service UUID（留空使用內建值）</label><input type="text" id="svc_' + def.id + '" placeholder="例如 45440001-0023-4bd4-bbd5-a6920e4c5653"></div>' +
+          (def.type === 'lovense'
+            ? '<div class="row"><div><label>TX UUID</label><input type="text" id="tx_' + def.id + '" placeholder="…0002-…"></div><div><label>RX UUID</label><input type="text" id="rx_' + def.id + '" placeholder="…0003-…"></div></div>'
+            : '<div class="row"><div><label>Mode UUID</label><input type="text" id="mode_' + def.id + '" placeholder="…1501-…"></div><div><label>Value UUID</label><input type="text" id="val_' + def.id + '" placeholder="…1502-…"></div></div>') +
+          '<div class="row"><div><input type="text" id="raw_' + def.id + '" placeholder="Raw 指令 / 數值（Lovense: Vibrate:10; ｜ Satisfyer: 0-100）"></div><button class="btn-send" id="rawsend_' + def.id + '">送出</button></div>' +
+          '<p class="hint">' + def.hint + '</p>' +
+        '</div>' +
+      '</details>';
+
+    return card;
+  }
+
+  DEVICE_DEFS.forEach(function(def){
+    var card = buildDeviceCard(def);
+    $('deviceList').appendChild(card);
+
+    var cfg = {
+      label: def.label,
+      code: def.code,
+      cmdName: def.cmdName,
+      getCmdName: def.cmdOptions ? function(){
+        var el = $('cmd_' + def.id);
+        return el ? el.value : def.cmdName;
+      } : undefined,
+      getManualUuids: function(){
+        var svc = ($('svc_' + def.id).value || '').trim();
+        if (!svc) return null;
+        if (def.type === 'lovense') {
+          var tx = ($('tx_' + def.id).value || '').trim();
+          var rx = ($('rx_' + def.id).value || '').trim();
+          return { service: svc, tx: tx || svc.replace('0001-', '0002-'), rx: rx || svc.replace('0001-', '0003-') };
+        } else {
+          var mode = ($('mode_' + def.id).value || '').trim();
+          var val = ($('val_' + def.id).value || '').trim();
+          return { service: svc, mode: mode || svc.replace('1500-', '1501-'), value: val || svc.replace('1500-', '1502-') };
+        }
+      }
+    };
+
+    var instance = def.type === 'lovense' ? new LovenseDevice(cfg) : new SatisfyerDevice(cfg);
+    instances[def.id] = instance;
+
+    uiRefs[def.id] = {
+      badge: $('badge_' + def.id),
+      status: $('status_' + def.id),
+      enable: $('enable_' + def.id),
+      connectBtn: $('connect_' + def.id),
+      testBtn: $('test_' + def.id),
+      disconnectBtn: $('disconnect_' + def.id),
+      patDisplay: $('pat_' + def.id),
+      pctDisplay: $('pct_' + def.id),
+      rawInput: $('raw_' + def.id),
+      rawBtn: $('rawsend_' + def.id)
+    };
+
+    function setStatus(text, kind){
+      uiRefs[def.id].status.textContent = text;
+      uiRefs[def.id].status.className = 'status-line' + (kind ? ' ' + kind : '');
+    }
+
+    uiRefs[def.id].connectBtn.addEventListener('click', function(){
+      if (!navigator.bluetooth) {
+        setStatus('此瀏覽器不支援 Web Bluetooth，請用 Android Chrome 開啟', 'err');
+        return;
+      }
+      uiRefs[def.id].connectBtn.disabled = true;
+      instance.connect(setStatus).then(function(){
+        uiRefs[def.id].badge.textContent = '已連線';
+        uiRefs[def.id].badge.className = 'badge on';
+        uiRefs[def.id].enable.disabled = false;
+        uiRefs[def.id].testBtn.disabled = false;
+        uiRefs[def.id].disconnectBtn.disabled = false;
+        uiRefs[def.id].connectBtn.disabled = true;
+        refreshStartButtonAvailability();
+      }).catch(function(){
+        uiRefs[def.id].badge.textContent = '連線失敗';
+        uiRefs[def.id].badge.className = 'badge err';
+        uiRefs[def.id].connectBtn.disabled = false;
+      });
+    });
+
+    uiRefs[def.id].disconnectBtn.addEventListener('click', function(){
+      instance.disconnect();
+      uiRefs[def.id].badge.textContent = '未連線';
+      uiRefs[def.id].badge.className = 'badge off';
+      uiRefs[def.id].enable.checked = false;
+      uiRefs[def.id].enable.disabled = true;
+      uiRefs[def.id].testBtn.disabled = true;
+      uiRefs[def.id].disconnectBtn.disabled = true;
+      uiRefs[def.id].connectBtn.disabled = false;
+      setStatus('已手動中斷連線', '');
+      refreshStartButtonAvailability();
+    });
+
+    uiRefs[def.id].testBtn.addEventListener('click', function(){
+      instance.testPulse(3);
+    });
+
+    uiRefs[def.id].enable.addEventListener('click', function(){
+      refreshStartButtonAvailability();
+    });
+
+    uiRefs[def.id].rawBtn.addEventListener('click', function(){
+      var v = uiRefs[def.id].rawInput.value.trim();
+      if (!v) return;
+      if (def.type === 'lovense') {
+        instance.writeAscii(v.endsWith(';') ? v : v + ';');
+      } else {
+        var num = parseInt(v, 10);
+        if (!isNaN(num)) {
+          instance.startMotor().then(function(){ instance.writeValue(clamp(num, 0, 100)); });
+        }
+      }
+      log(def.label + '：手動送出 ' + v);
+    });
+  });
+
+  function refreshStartButtonAvailability(){
+    var anyReady = DEVICE_DEFS.some(function(def){
+      return instances[def.id].connected && uiRefs[def.id].enable.checked;
+    });
+    $('startBtn').disabled = !anyReady || gameRunning;
+  }
+
+  // =========================================================
+  // 遊戲邏輯（多裝置、各自隨機 pattern，共用強度節奏）
+  // =========================================================
+  var START_STRENGTH = 20, STEP = 5, STEP_MS = 1000, PATTERN_MS = 5000, MAX_STRENGTH = 100;
+  var TICK_MS = 250, RESET_DURATION_MS = 1000;
+
+  var gameRunning = false;
+  var resetting = false;
+  var escalationStart = null;
+  var tickTimer = null, patternRerollTimer = null, elapsedTimer = null;
+  var resetTimeout = null;
+  var wakeLockObj = null;
+
+  function activeDevices(){
+    return DEVICE_DEFS
+      .map(function(def){ return { def: def, inst: instances[def.id], ui: uiRefs[def.id] }; })
+      .filter(function(d){ return d.inst.connected && d.ui.enable.checked; });
+  }
+
+  function requestWakeLock(){
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').then(function(w){ wakeLockObj = w; }).catch(function(){});
+    }
+  }
+  function releaseWakeLock(){
+    if (wakeLockObj) { wakeLockObj.release().catch(function(){}); wakeLockObj = null; }
+  }
+
+  function currentBase(){
+    if (!escalationStart) return START_STRENGTH;
+    var elapsedSec = (Date.now() - escalationStart) / 1000;
+    var steps = Math.floor(elapsedSec / (STEP_MS / 1000));
+    return Math.min(MAX_STRENGTH, START_STRENGTH + steps * STEP);
+  }
+
+  function rerollPatterns(){
+    activeDevices().forEach(function(d){
+      d.inst.pattern = pickRandomPattern(d.inst.pattern.name);
+      d.inst.patternStartTime = Date.now();
+    });
+    log('全裝置重新隨機選擇 pattern');
+  }
+
+  function tick(){
+    var base = currentBase();
+    $('baseDisplay').textContent = (resetting ? $('resetStrength').value : base) + '%';
+    $('strengthBar').style.width = (resetting ? $('resetStrength').value : base) + '%';
+
+    activeDevices().forEach(function(d){
+      var pct;
+      if (resetting) {
+        pct = clamp(parseInt($('resetStrength').value, 10) || 0, 0, 100);
+      } else {
+        var t = (Date.now() - d.inst.patternStartTime) / 1000;
+        pct = clamp(d.inst.pattern.calc(t, base), 0, 100);
+      }
+      d.inst.applyPercent(pct);
+      d.ui.patDisplay.textContent = resetting ? '穩定（重置中）' : d.inst.pattern.name;
+      d.ui.pctDisplay.textContent = Math.round(pct) + '%';
+    });
+  }
+
+  function updateElapsed(){
+    if (!escalationStart) return;
+    var sec = Math.floor((Date.now() - escalationStart) / 1000);
+    var mm = String(Math.floor(sec / 60)).padStart(2, '0');
+    var ss = String(sec % 60).padStart(2, '0');
+    $('timeDisplay').textContent = mm + ':' + ss;
+  }
+
+  function beginEscalation(){
+    escalationStart = Date.now();
+    activeDevices().forEach(function(d){
+      d.inst.pattern = pickRandomPattern();
+      d.inst.patternStartTime = Date.now();
+      d.inst.lastSentValue = null;
+      if (d.inst instanceof SatisfyerDevice) d.inst.startMotor();
+    });
+    if (patternRerollTimer) clearInterval(patternRerollTimer);
+    patternRerollTimer = setInterval(rerollPatterns, PATTERN_MS);
+  }
+
+  function startGame(){
+    var devs = activeDevices();
+    if (!devs.length) { log('沒有已連線且啟用的裝置，無法開始'); return; }
+    gameRunning = true;
+    resetting = false;
+    requestWakeLock();
+    beginEscalation();
+
+    $('startBtn').disabled = true;
+    $('stopBtn').disabled = false;
+    $('resetBtn').disabled = false;
+
+    log('遊戲開始，已啟用裝置：' + devs.map(function(d){ return d.def.label; }).join('、'));
+
+    tickTimer = setInterval(tick, TICK_MS);
+    elapsedTimer = setInterval(updateElapsed, 250);
+    tick();
+  }
+
+  function stopGame(){
+    gameRunning = false;
+    resetting = false;
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    if (patternRerollTimer) { clearInterval(patternRerollTimer); patternRerollTimer = null; }
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+    if (resetTimeout) { clearTimeout(resetTimeout); resetTimeout = null; }
+    releaseWakeLock();
+
+    activeDevices().forEach(function(d){ d.inst.stopMotor(); });
+
+    $('startBtn').disabled = false;
+    $('stopBtn').disabled = true;
+    $('resetBtn').disabled = true;
+    $('baseDisplay').textContent = '-';
+    $('strengthBar').style.width = '0%';
+    escalationStart = null;
+    refreshStartButtonAvailability();
+
+    log('遊戲結束，已停止所有裝置');
+  }
+
+  function resetGame(){
+    if (!gameRunning || resetting) return;
+    resetting = true;
+    log('觸發重置：以 ' + $('resetStrength').value + '% 輸出 1 秒穩定 pattern');
+    if (patternRerollTimer) { clearInterval(patternRerollTimer); patternRerollTimer = null; }
+    resetTimeout = setTimeout(function(){
+      resetting = false;
+      beginEscalation();
+      log('重置結束，回到起始狀態（20% 起跳，各自重新隨機 pattern）');
+    }, RESET_DURATION_MS);
+  }
+
+  $('startBtn').addEventListener('click', startGame);
+  $('stopBtn').addEventListener('click', stopGame);
+  $('resetBtn').addEventListener('click', resetGame);
+
+  window.addEventListener('beforeunload', function(){
+    activeDevices().forEach(function(d){ d.inst.stopMotor(); });
+  });
+
+  log('頁面已載入。請依序連線各裝置、勾選啟用，再按「開始遊戲」。');
+})();
+</script>
+</body>
+</html>
